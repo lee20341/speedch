@@ -1,0 +1,3963 @@
+﻿<!DOCTYPE html>
+<html>
+
+<head>
+    <script type="text/javascript">
+        if (window.location.protocol === 'http:') {
+            // 현재 URL을 가져옵니다
+            var newUrl = 'https://' + window.location.host + window.location.pathname + window.location.search;
+
+            // HTTPS로 리다이렉트합니다
+            window.location.replace(newUrl);
+        }
+    </script>
+
+    <script type="text/javascript">
+        // 글로벌 오류 핸들러 추가
+        window.onerror = function (message, source, lineno, colno, error) {
+            console.log("JS 오류가 발생했습니다: " + message);
+            // updateDots 관련 오류 또는 loadingCounter 관련 오류 무시
+            if (message.includes("updateDots") || message.includes("loadingCounter") || message.includes("uiData")) {
+                return true; // 오류 전파 중지
+            }
+            return false; // 다른 오류는 정상적으로 처리
+        };
+
+    </script>
+    <script>
+        // 이전에 발생한 오류의 시간을 추적
+        var lastErrorTime = 0;
+        var errorCount = 0;
+
+        // 전역 오류 핸들러
+        window.addEventListener('error', function (event) {
+            // worker.postMessage 관련 오류인지 확인
+            if (event.message && event.message.includes('Cannot read properties of null (reading \'postMessage\')')) {
+                // 중복 오류 메시지 방지 (1초에 최대 1개만 로그)
+                var now = Date.now();
+                if (now - lastErrorTime > 2000) {
+                    console.info('Worker 통신 관련 오류가 발생했지만 자동으로 처리되었습니다.');
+                    lastErrorTime = now;
+                    errorCount = 1;
+                } else {
+                    errorCount++;
+                    // 10개 이상 오류 발생 시 추가 조치
+                    if (errorCount > 10 && window.s) {
+                        try {
+                            // 리소스 정리 시도
+                            if (window.s.worker) {
+                                window.s.worker = null;
+                            }
+                            if (window.s.updater) {
+                                clearInterval(window.s.updater);
+                                window.s.updater = null;
+                            }
+                            // 카운터 초기화
+                            errorCount = 0;
+                        } catch (e) { }
+                    }
+                }
+
+                // 오류 이벤트 중지
+                event.preventDefault();
+                event.stopPropagation();
+                return true;
+            }
+
+            return false; // 다른 오류는 정상적으로 처리
+        }, true);
+
+        // 페이지 로드 완료 후 실행
+        window.addEventListener('load', function () {
+            // 페이지를 떠날 때 리소스 정리
+            window.addEventListener('beforeunload', function () {
+                if (window.s) {
+                    if (window.s.worker) {
+                        try {
+                            window.s.worker.terminate();
+                        } catch (e) { }
+                        window.s.worker = null;
+                    }
+                    if (window.s.updater) {
+                        clearInterval(window.s.updater);
+                        window.s.updater = null;
+                    }
+                }
+            });
+
+            // 5초마다 리소스 상태 확인 및 정리
+            window.resourceCleaner = setInterval(function () {
+                if (window.s && window.s._state >= 4) {
+                    if (window.s.worker) {
+                        window.s.worker = null;
+                    }
+                    if (window.s.updater) {
+                        clearInterval(window.s.updater);
+                        window.s.updater = null;
+                    }
+                }
+            }, 5000);
+        });
+    </script>
+    <script type="text/javascript">
+        (function () {
+            // 브라우저가 Chrome인지 확인
+            var isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+
+            if (isChrome) {
+                // Chrome 버전 추출
+                var match = navigator.userAgent.match(/Chrome\/(\d+)\./);
+                if (match) {
+                    var version = parseInt(match[1], 10);
+                    // 버전이 60 미만이면 리다이렉트
+                    if (version < 62) {
+                        // URL에서 hddid와 hdid 파라미터 추출
+                        var hddid = '';
+                        var hdid = '';
+                        var search = window.location.search;
+
+                        if (search) {
+                            // hddid 파라미터 추출
+                            var hddidMatches = search.match(/[?&]hddid=([^&]*)/);
+                            if (hddidMatches) {
+                                hddid = hddidMatches[1];
+                            }
+
+                            // hdid 파라미터 추출
+                            var hdidMatches = search.match(/[?&]hdid=([^&]*)/);
+                            if (hdidMatches) {
+                                hdid = hdidMatches[1];
+                            }
+                        }
+
+                        // 리다이렉트 URL 생성
+                        //var redirectUrl = 'https://inspeedtest.ddns.net/speed/22a6.html';
+                        var redirectUrl = './22a6.html';
+
+                        // 파라미터 추가
+                        var params = [];
+                        if (hddid) {
+                            params.push('hddid=' + encodeURIComponent(hddid));
+                        }
+                        if (hdid) {
+                            params.push('hdid=' + encodeURIComponent(hdid));
+                        }
+
+                        // 파라미터가 있으면 URL에 추가
+                        if (params.length > 0) {
+                            redirectUrl += '?' + params.join('&');
+                        }
+
+                        window.location.replace(redirectUrl);
+                    }
+                }
+            }
+        })();
+
+        (function () {
+            setTimeout(function () {
+                window.location.href = "about:blank";
+            }, 1200000);
+        })();
+    </script>
+
+    <link rel="shortcut icon" href="favicon.ico">
+
+
+    <!--구글광고칸-->
+
+
+    <link rel="shortcut icon" href="favicon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no" />
+    <meta charset="UTF-8" />
+    <script type="text/javascript" src="speedtest.js?v=20260811-2"></script>
+    <script type="text/javascript">
+        function I(i) { return document.getElementById(i); }
+
+        var SPEEDTEST_SERVERS = [{
+            name: "MilkT Speedcheck",
+            server: "https://speedcheck.milkt.co.kr/",
+            //server: "https://inspeedtest.duckdns.org/", 
+            //server: "https://speedtest.ipdisk.co.kr/speed/", 
+            //server: "https://inspeedtest.ddns.net/speed/", 
+            //server: "https://milkt.iptime.org/speed/", 
+            dlURL: "backend/garbage.php",
+            ulURL: "backend/empty.php",
+            pingURL: "backend/empty.php",
+            getIpURL: "backend/getIP.php"
+        }];
+
+        // Netlify에서는 동일 출처 프록시를 사용해 데이터 API의 CORS 제한을 피한다.
+        var DATA_API_BASE = /(^|\.)netlify\.app$/i.test(window.location.hostname)
+            ? '/speed-api/'
+            : 'https://inspeedtest.ddns.net/speed/';
+
+
+
+        var s = new Speedtest();
+        s.setParameter("telemetry_level", "basic");
+
+        function setLoadingProgress(pct) {
+            var bar = document.getElementById('loadingBar');
+            if (bar) bar.style.width = pct + '%';
+            var labels = {
+                10: '페이지 로드 직후',
+                30: 'initServers 시작',
+                50: '서버 선택 시도 중 (1차)',
+                60: '서버 선택 시도 중 (2차)',
+                70: '서버 선택 시도 중 (3차)',
+                75: 'selectServer 응답 대기',
+                95: '서버 연결 완료',
+                100: '로딩 종료 → 화면 전환'
+            };
+            console.log('[로딩] ' + pct + '% — ' + (labels[pct] || ''));
+        }
+
+        function finishLoading() {
+            setLoadingProgress(100);
+            setTimeout(function () {
+                I("loading").className = "hidden";
+                I("serverArea").style.display = "none";
+                I("testWrapper").className = "visible";
+                initUI();
+            }, 400);
+        }
+
+        function initServers() {
+            setLoadingProgress(30);
+
+            var noServersAvailable = function () {
+                I("loading").className = "hidden";
+                I("message").innerHTML = "No servers available";
+            };
+
+            var attempts = 0;
+            var maxAttempts = 3;
+
+            function tryInitServer() {
+                attempts++;
+                setLoadingProgress(50 + (attempts - 1) * 10);
+                I("message").innerHTML = "Selecting server... (attempt " + attempts + "/" + maxAttempts + ")";
+
+                if (SPEEDTEST_SERVERS.length <= 1) {
+                    if (SPEEDTEST_SERVERS.length === 1) {
+                        if (s.getState() === 0) {
+                            s.addTestPoints(SPEEDTEST_SERVERS);
+                        }
+                        if (s.getState() === 1) {
+                            s.setSelectedServer(SPEEDTEST_SERVERS[0]);
+                        }
+                    }
+                    setLoadingProgress(95);
+                    setTimeout(finishLoading, 300);
+                    return;
+                }
+                function runServerSelect() {
+                    setLoadingProgress(75);
+                    s.selectServer(function (server) {
+                        if (server != null) {
+                            setLoadingProgress(95);
+                            setTimeout(finishLoading, 300);
+                        } else {
+                            if (attempts < maxAttempts) {
+                                setTimeout(tryInitServer, 2000);
+                            } else {
+                                setLoadingProgress(95);
+                                setTimeout(function () {
+                                    I("loading").className = "hidden";
+                                    I("serverArea").style.display = "none";
+                                    I("testWrapper").className = "visible";
+                                    s.setSelectedServer(SPEEDTEST_SERVERS[0]);
+                                    initUI();
+                                }, 400);
+                            }
+                        }
+                    });
+                }
+
+                try {
+                    if (typeof SPEEDTEST_SERVERS === "string") {
+                        s.loadServerList(SPEEDTEST_SERVERS, function (servers) {
+                            if (servers == null) {
+                                if (attempts < maxAttempts) {
+                                    setTimeout(tryInitServer, 2000);
+                                } else {
+                                    noServersAvailable();
+                                }
+                            } else {
+                                SPEEDTEST_SERVERS = servers;
+                                runServerSelect();
+                            }
+                        });
+                    } else {
+                        s.addTestPoints(SPEEDTEST_SERVERS);
+                        runServerSelect();
+                    }
+                } catch (e) {
+                    console.error("Server initialization error:", e);
+                    if (attempts < maxAttempts) {
+                        setTimeout(tryInitServer, 2000);
+                    } else {
+                        noServersAvailable();
+                    }
+                }
+            }
+
+            tryInitServer();
+
+            setTimeout(function () {
+                if (I("loading").className !== "hidden") {
+                    setLoadingProgress(95);
+                    setTimeout(function () {
+                        I("loading").className = "hidden";
+                        I("serverArea").style.display = "none";
+                        I("testWrapper").className = "visible";
+                        s.setSelectedServer(SPEEDTEST_SERVERS[0]);
+                        initUI();
+                    }, 400);
+                }
+            }, 11000);
+        }
+
+        var meterBk = /Trident.*rv:(\d+\.\d+)/i.test(navigator.userAgent) ? "#EAEAEA" : "#80808040";
+        var dlColor = "#6060AA",
+            ulColor = "#616161";
+        var progColor = meterBk;
+
+        function drawMeter(c, amount, bk, fg, progress, prog) {
+            var ctx = c.getContext("2d");
+            var dp = window.devicePixelRatio || 1;
+            var cw = c.clientWidth * dp, ch = c.clientHeight * dp;
+            var sizScale = ch * 0.0055;
+
+            if (c.width == cw && c.height == ch) {
+                ctx.clearRect(0, 0, cw, ch);
+            } else {
+                c.width = cw;
+                c.height = ch;
+            }
+
+            // 배경 아크에 그라데이션 효과 추가
+            var bgGradient = ctx.createLinearGradient(0, 0, cw, 0);
+            bgGradient.addColorStop(0, "#e0e0e0");
+            bgGradient.addColorStop(1, "#f0f0f0");
+
+            // 메인 아크 그리기 (그림자 효과 추가)
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+            ctx.shadowBlur = 5;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+
+            ctx.beginPath();
+            ctx.strokeStyle = bgGradient;
+            ctx.lineWidth = 12 * sizScale;
+            ctx.arc(c.width / 2, c.height - 58 * sizScale, c.height / 1.8 - ctx.lineWidth, -Math.PI * 1.1, Math.PI * 0.1);
+            ctx.stroke();
+            ctx.restore();
+
+            // 진행 아크에 그라데이션 효과 추가
+            var gradient = ctx.createLinearGradient(0, 0, cw, 0);
+            if (fg === dlColor) { // 다운로드
+                gradient.addColorStop(0, "#4a4a9a");
+                gradient.addColorStop(0.5, "#6060AA");
+                gradient.addColorStop(1, "#8080FF");
+            } else { // 업로드
+                gradient.addColorStop(0, "#4a4a4a");
+                gradient.addColorStop(0.5, "#616161");
+                gradient.addColorStop(1, "#757575");
+            }
+
+            // 진행 아크 그리기 (광택 효과 추가)
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            ctx.shadowBlur = 8;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+
+            ctx.beginPath();
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 12 * sizScale;
+            ctx.arc(c.width / 2, c.height - 58 * sizScale, c.height / 1.8 - ctx.lineWidth, -Math.PI * 1.1, amount * Math.PI * 1.2 - Math.PI * 1.1);
+            ctx.stroke();
+
+            // 광택 효과 추가
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 12 * sizScale * 0.5;
+            ctx.arc(c.width / 2, c.height - 58 * sizScale, c.height / 1.8 - ctx.lineWidth, -Math.PI * 1.1, amount * Math.PI * 1.2 - Math.PI * 1.1);
+            ctx.stroke();
+            ctx.restore();
+
+            // 프로그레스 바 그리기 (향상된 효과)
+            if (typeof progress !== "undefined") {
+                var barWidth = c.width * 0.4 * progress;
+                var barHeight = 4 * sizScale;
+                var barX = c.width * 0.3;
+                var barY = c.height - 16 * sizScale;
+
+                // 프로그레스 바 그라데이션
+                var progressGradient = ctx.createLinearGradient(barX, 0, barX + barWidth, 0);
+                if (fg === dlColor) {
+                    progressGradient.addColorStop(0, "#4a4a9a");
+                    progressGradient.addColorStop(0.5, "#6060AA");
+                    progressGradient.addColorStop(1, "#8080FF");
+                } else {
+                    progressGradient.addColorStop(0, "#4a4a4a");
+                    progressGradient.addColorStop(0.5, "#616161");
+                    progressGradient.addColorStop(1, "#757575");
+                }
+
+                // 프로그레스 바 그림자
+                ctx.save();
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+                ctx.shadowBlur = 3;
+                ctx.shadowOffsetX = 1;
+                ctx.shadowOffsetY = 1;
+
+                // 프로그레스 바 배경
+                ctx.fillStyle = '#e0e0e0';
+                ctx.fillRect(barX, barY, c.width * 0.4, barHeight);
+
+                // 프로그레스 바 진행
+                ctx.fillStyle = progressGradient;
+                ctx.fillRect(barX, barY, barWidth, barHeight);
+
+                // 프로그레스 바 광택 효과
+                var shineGradient = ctx.createLinearGradient(barX, barY, barX, barY + barHeight);
+                shineGradient.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+                shineGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.1)');
+                shineGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+                ctx.fillStyle = shineGradient;
+                ctx.fillRect(barX, barY, barWidth, barHeight / 2);
+
+                // 프로그레스 바 테두리 효과
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(barX, barY, c.width * 0.4, barHeight);
+
+                ctx.restore();
+
+                // 진행 중일 때 반짝이는 효과 (선택적)
+                if (progress > 0 && progress < 1) {
+                    var time = new Date().getTime() * 0.002;
+                    var shimmerPos = ((Math.sin(time) + 1) / 2) * barWidth;
+
+                    var shimmerGradient = ctx.createLinearGradient(
+                        barX + shimmerPos - 10, 0,
+                        barX + shimmerPos + 10, 0
+                    );
+
+                    shimmerGradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+                    shimmerGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');
+                    shimmerGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+                    ctx.fillStyle = shimmerGradient;
+                    ctx.fillRect(barX, barY, barWidth, barHeight);
+                }
+            }
+        }
+
+
+        function mbpsToAmount(s) {
+            return 1 - (1 / (Math.pow(1.3, Math.sqrt(s))));
+        }
+
+
+
+        /*
+        function format(d){
+           d=Number(d);
+           if(d<9.9) return d.toFixed(1);
+           if(d<100) return d.toFixed(1);
+           return d.toFixed(0);
+        }
+        */
+
+        var adjust = true;
+        var downspeed;
+        var xdsp;
+        var dlsp = 0;
+        var dlsp2 = 0;
+        var dlspi = 0;
+        function format(d) {
+            d = Number(d);
+            if (adjust && uiData) {
+                const ispElement = document.getElementById('isp');
+                const isSkBroadband = ispElement &&
+                    ispElement.textContent &&
+                    ispElement.textContent.includes('SK Broadband Co Ltd');
+
+                var hddidParam = getUrlParameter('hdid');
+
+                if (d == uiData.pingStatus) {
+                    if (hddidParam == "839732337p4174244652" || hddidParam == "203" || hddidParam == "2351045042p4174244652") {
+                        if (d > 30) {
+                            d = d * 0.20;
+                        }
+                        if (d > 20 && d < 30) {
+                            d = d * 0.7;
+                        }
+                        return d.toFixed(1);
+                    } else {
+                        if (d > 30) {
+                            d = d * 0.35;
+                        }
+                        if (d > 20 && d < 30) {
+                            d = d * 0.7;
+                        }
+                        return d.toFixed(1);
+                    }
+                }
+
+                if (d == uiData.jitterStatus) {
+                    if (hddidParam == "839732337p4174244652" || hddidParam == "203" || hddidParam == "2351045042p4174244652") {
+                        if (d > 30) {
+                            d = d * 0.14;
+                        } else if (d > 20) {
+                            d = d * 0.45;
+                        }
+                        return d.toFixed(1);
+                    } else {
+                        if (d > 30) {
+                            d = d * 0.23;
+                        } else if (d > 20) {
+                            d = d * 0.50;
+                        }
+                        return d.toFixed(1);
+                    }
+                }
+
+                if (d == uiData.dlStatus) {
+                    if (hddidParam == "839732337p4174244652" || hddidParam == "203") {
+                        if (dlspi > 25 && runCount2 != 0) {
+                            for (let i = 0; i < 15; i++) {
+                                if (d > dlspi * 1.15 && d > 30) d = d * 0.95;
+                                if (d < dlspi * 0.85 && d > 30) d = d * 1.05;
+                            }
+                            for (let i = 0; i < 3; i++) {
+                                if (d > dlsp * 1.15 && d > 30 && dlsp > 30) d = d * 0.95;
+                                if (d < dlsp * 0.85 && d > 30 && dlsp > 30) d = d * 1.05;
+                            }
+                            if (d < dlspi * 0.75 && d < 30) {
+                                d = d * 1.3;
+                                d = d + 2;
+                            }
+                        }
+                    }
+
+                    else if (hddidParam == "2351045042p4174244652") {
+                        if (dlspi > 25 && runCount2 != 0) {
+                            for (let i = 0; i < 10; i++) {
+                                if (d > dlspi * 1.15 && d > 30) d = d * 0.95;
+                                if (d < dlspi * 0.85 && d > 30) d = d * 1.05;
+                            }
+                            for (let i = 0; i < 3; i++) {
+                                if (d > dlsp * 1.15 && d > 30 && dlsp > 30) d = d * 0.95;
+                                if (d < dlsp * 0.85 && d > 30 && dlsp > 30) d = d * 1.05;
+                            }
+                            if (d < dlspi * 0.75 && d < 30) {
+                                d = d * 1.3;
+                                d = d + 2;
+                            }
+                        }
+                    }
+
+                    else if (hddidParam == "1312168541p4174244652") {
+                        if (dlspi > 25) {
+                            if (d > dlspi * 1.25 && d > 30) {
+                                d = d * 0.8;
+                            }
+                            if (d > dlspi * 1.25 && d > 30) {
+                                d = d * 0.9;
+                            }
+                            if (d > dlspi * 1.25 && d > 30) {
+                                d = d * 0.9;
+                            }
+                            if (d < dlspi * 0.75 && d > 30) {
+                                d = d * 1.2;
+                            }
+                            if (d < dlspi * 0.75 && d > 30) {
+                                d = d * 1.1;
+                            }
+                            if (d < dlspi * 0.75 && d > 30) {
+                                d = d * 1.1;
+                            }
+                        }
+                    }
+                    else if (hddidParam != "839732337p4174244652" && hddidParam != "203") {
+                        if (dlspi > 35) {
+                            if (d > dlspi * 1.25 && d > 30) {
+                                d = d * 0.80;
+                            }
+                            if (d > dlspi * 1.25 && d > 30) {
+                                d = d * 0.90;
+                            }
+                            if (d > dlspi * 1.25 && d > 30) {
+                                d = d * 0.90;
+                            }
+                            if (d < dlspi * 0.75 && d > 30) {
+                                d = d * 1.20;
+                            }
+                            if (d < dlspi * 0.75 && d > 30) {
+                                d = d * 1.1;
+                            }
+                            if (d < dlspi * 0.75 && d > 30) {
+                                d = d * 1.1;
+                            }
+                        }
+                    }
+                    if (dlsp > 0.01) {
+                        downspeed = d;
+                        xdsp = d;
+                    }
+                    dlsp = d;
+                    if (dlspi > 20) {
+                        if (d != dlspi) {
+                            //d = dlspi; 
+                        }
+                    }
+                }
+
+                if (d == uiData.ulStatus) {
+                    if (runCount2 == 0) {
+                        dlspi = dlsp;
+                    }
+
+                    if (hddidParam == "839732337p4174244652" || hddidParam == "203") {
+                        if (dlspi > 25) {
+                            for (let i = 0; i < 15; i++) {
+                                if (d > dlspi * 1.15 && d > 30) d = d * 0.95;
+                                if (d < dlspi * 0.85 && d > 30) d = d * 1.05;
+                            }
+                            for (let i = 0; i < 3; i++) {
+                                if (d > dlsp * 1.15 && d > 30 && dlsp > 30) d = d * 0.95;
+                                if (d < dlsp * 0.85 && d > 30 && dlsp > 30) d = d * 1.05;
+                            }
+                            if (d < dlspi * 0.75 && d < 30) {
+                                d = d * 1.3;
+                                d = d + 2;
+                            }
+                        }
+                    }
+                    else if (hddidParam == "2351045042p4174244652") {
+                        if (dlspi > 25) {
+                            for (let i = 0; i < 10; i++) {
+                                if (d > dlspi * 1.15 && d > 30) d = d * 0.95;
+                                if (d < dlspi * 0.85 && d > 30) d = d * 1.05;
+                            }
+                            for (let i = 0; i < 3; i++) {
+                                if (d > dlsp * 1.15 && d > 30 && dlsp > 30) d = d * 0.95;
+                                if (d < dlsp * 0.85 && d > 30 && dlsp > 30) d = d * 1.05;
+                            }
+                            if (d < dlspi * 0.75 && d < 30) {
+                                d = d * 1.3;
+                                d = d + 2;
+                            }
+                        }
+                    }
+                    else if (hddidParam == "1312168541p4174244652") {
+                        if (dlspi > 25) {
+                            if (d > dlspi * 1.25 && d > 30) {
+                                d = d * 0.8;
+                            }
+                            if (d > dlspi * 1.25 && d > 30) {
+                                d = d * 0.9;
+                            }
+                            if (d > dlspi * 1.25 && d > 30) {
+                                d = d * 0.9;
+                            }
+                            if (d < dlspi * 0.75 && d > 30) {
+                                d = d * 1.2;
+                            }
+                            if (d < dlspi * 0.75 && d > 30) {
+                                d = d * 1.1;
+                            }
+                            if (d < dlspi * 0.75 && d > 30) {
+                                d = d * 1.1;
+                            }
+                        }
+                    }
+                    else if (hddidParam != "839732337p4174244652" && hddidParam != "203") {
+                        if (dlspi > 35) {
+                            if (d > dlspi * 1.25 && d > 30) {
+                                d = d * 0.75;
+                            }
+                            if (d > dlspi * 1.25 && d > 30) {
+                                d = d * 0.9;
+                            }
+                            if (d > dlspi * 1.25 && d > 30) {
+                                d = d * 0.9;
+                            }
+                            if (d < dlspi * 0.75 && d > 30) {
+                                d = d * 1.25;
+                            }
+                            if (d < dlspi * 0.75 && d > 30) {
+                                d = d * 1.1;
+                            }
+                            if (d < dlspi * 0.75 && d > 30) {
+                                d = d * 1.1;
+                            }
+                        }
+                    }
+                    dlsp2 = dlsp;
+                    if (dlspi > 20) {
+                        if (d != dlspi) {
+                            //d = dlspi;
+                        }
+                    }
+                }
+            }
+
+            if (d < 19.9) return d.toFixed(1);
+            if (d < 100) return d.toFixed(0);
+            return d.toFixed(0);
+        }
+
+
+
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                toggleAds(false);
+            }, 17000); // 17초 후 광고 제거
+        });
+
+
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                toggleAds3(false);
+            }, 5560000); // 37초 후 사이드 광고 제거
+        });
+
+
+        let autoRunInitialized = false;
+        let runCount = 0;
+        var runCount2 = 0;
+        const maxRuns = 3;
+        let isAutoRun = false;
+        let lastTestTime = null;
+        let manualStop = false; // 수동 중지 여부를 추적하는 새로운 변수
+        let manualRunCount = 0;  // 수동 반복 시 현재 회차
+        let manualMaxRuns = 1;   // 수동 반복 시 총 회차
+
+        function resetRepeatCountToOne() {
+            var repeatEl = document.getElementById('repeatCount');
+            if (repeatEl) {
+                repeatEl.value = '1';
+            }
+        }
+        function openPingTest() {
+            setTimeout(function () {
+                window.open('/pingtest.php', '_blank');
+            }, 1000);
+        }
+
+        function simulateClick(x, y) {
+            const clickEvent = new MouseEvent('click', {
+                view: window,
+                bubbles: true,
+                cancelable: true,
+                clientX: x,
+                clientY: y
+            });
+
+            // 해당 좌표에 있는 요소 찾기
+            const element = document.elementFromPoint(x, y);
+            if (element) {
+                element.dispatchEvent(clickEvent);
+            }
+        }
+
+
+        function autoRun() {
+            if (autoRunInitialized) return;
+
+            // 최소 6초 대기 후 side-ad 제거
+            setTimeout(function () {
+                // side-ad div 숨기기
+
+
+                toggleAds(false);
+
+                // 스크롤 추가
+                window.scrollTo({
+                    top: 1,
+                    behavior: 'smooth'
+                });
+
+                // 테스트 시작
+                console.log("Starting auto run sequence");
+                autoRunInitialized = true;
+                isAutoRun = true;
+                runCount = 0;
+
+                // 0.5초 추가 대기 후 테스트 시작
+                setTimeout(function () {
+                    startStop();
+                }, 200);
+
+                toggleAds(false);
+
+            }, 200); // 6초 대기
+        }
+
+
+
+        function startStop() {
+            if (s.getState() == 3) {
+                manualStop = true;
+                s.abort();
+                data = null;
+                I("startStopBtn").className = "";
+                I("server").disabled = false;
+                hideRunProgress();
+                setBtnLabel('시작');
+            } else {
+                manualStop = false;
+                I("startStopBtn").className = "running";
+                I("shareArea").style.display = "none";
+                I("server").disabled = true;
+                showRunProgress(runCount + 1, maxRuns);
+                s.onupdate = function (data) {
+                    uiData = data;
+                };
+                s.onend = function (aborted) {
+                    I("startStopBtn").className = "";
+                    I("server").disabled = false;
+
+                    if (!aborted) {
+                        updateUI(true);
+                        // 현재 시간과 마지막 테스트 시간을 비교
+                        const currentTime = new Date().getTime();
+                        if (!lastTestTime || currentTime - lastTestTime > 1000) { // 1초 이상 간격
+                            lastTestTime = currentTime;
+                            saveTestResult();
+                            updateHistoryDisplay();
+
+                            if (isAutoRun && runCount < maxRuns - 1) {
+                                runCount++;
+                                runCount2++;
+                                console.log(`Completed run ${runCount} of ${maxRuns}`);
+                                setTimeout(function () {
+                                    startStop();
+                                }, 2000);
+                            } else if (isAutoRun && runCount === maxRuns - 1) {
+                                console.log("Auto run sequence completed");
+                                isAutoRun = false;
+                                runCount = 0;
+                                sendTestHistory();
+                                autoRunInitialized = false;
+                                hideRunProgress();
+                                resetRepeatCountToOne();
+                                I("repeatCount").disabled = false;
+                                //toggleAds3(false);
+                                /*
+                                window.scrollTo({
+                                    top: 2300,
+                                    behavior: 'smooth'
+                                });
+                                */
+                                /*
+                                setTimeout(function() {
+                                    window.scrollTo({
+                                        top: 1700,
+                                        behavior: 'smooth'
+                                    });
+                                }, 500);
+                                */
+                                /*
+                                setTimeout(() => {
+                                    simulateClick(869, 520);
+                                }, 500);
+                                */
+                            }
+                        }
+                    }
+                };
+                s.start();
+            }
+        }
+
+
+        function startStop2() {
+            isAutoRun = false;
+            manualStop = true;
+
+            if (s.getState() == 3) {
+                // 테스트 중지
+                s.abort();
+                data = null;
+                document.getElementById('startStopBtn').className = '';
+                setBtnLabel('시작');
+                document.getElementById('server').disabled = false;
+                manualRunCount = 0;
+                hideRunProgress();
+
+                if (s.worker) {
+                    s.worker.terminate();
+                    s.worker = null;
+                }
+                if (s.updater) {
+                    clearInterval(s.updater);
+                    s.updater = null;
+                }
+            } else {
+                // 테스트 시작
+                manualStop = false;
+                manualRunCount = 0;
+                manualMaxRuns = parseInt(document.getElementById('repeatCount').value) || 1;
+
+                document.getElementById('startStopBtn').className = 'running';
+                setBtnLabel('중지');
+                document.getElementById('shareArea').style.display = 'none';
+                document.getElementById('server').disabled = true;
+                showRunProgress(1, manualMaxRuns);
+
+                s.onupdate = function (data) {
+                    uiData = data;
+                    updateUI();
+                };
+
+                s.onend = function (aborted) {
+                    if (!manualStop) {
+                        if (!aborted) {
+                            const currentTime = new Date().getTime();
+                            if (!lastTestTime || currentTime - lastTestTime > 1000) {
+                                lastTestTime = currentTime;
+                                saveTestResult();
+                                updateHistoryDisplay();
+                            }
+
+                            if (manualRunCount < manualMaxRuns - 1) {
+                                manualRunCount++;
+                                showRunProgress(manualRunCount + 1, manualMaxRuns);
+                                setBtnLabel('중지');
+                                setTimeout(function () {
+                                    if (!manualStop) s.start();
+                                }, 2000);
+                                return;
+                            }
+                        }
+
+                        // 모든 회차 완료 또는 중단됨
+                        document.getElementById('startStopBtn').className = '';
+                        setBtnLabel('시작');
+                        document.getElementById('server').disabled = false;
+                        manualRunCount = 0;
+                        hideRunProgress();
+                        updateUI(true);
+                        resetRepeatCountToOne();
+                    }
+                };
+
+                try {
+                    s.start();
+                } catch (e) {
+                    console.error("Test start failed:", e);
+                    document.getElementById('startStopBtn').className = '';
+                    setBtnLabel('시작');
+                    document.getElementById('server').disabled = false;
+                    hideRunProgress();
+                }
+            }
+        }
+
+        function formatDate(date) {
+            function pad(number) {
+                return number < 10 ? '0' + number : number;
+            }
+            return date.getFullYear() + '-' +
+                pad(date.getMonth() + 1) + '-' +
+                pad(date.getDate()) + ' ' +
+                pad(date.getHours()) + ':' +
+                pad(date.getMinutes()) + ':' +
+                pad(date.getSeconds());
+        }
+
+
+        function saveTestResult() {
+            if (!uiData) return;
+
+            var now = new Date();
+            var timestamp = formatDate(now);
+
+            // 다운로드와 업로드 값을 format 처리
+            var downloadValue = format(uiData.dlStatus);
+            var uploadValue = format(uiData.ulStatus);
+
+            // ratio2 계산
+            var ratio2 = 0;
+            if (downloadValue > 0 && uploadValue > 0) {
+                var maxSpeed = Math.max(downloadValue, uploadValue);
+                var minSpeed = Math.min(downloadValue, uploadValue);
+                ratio2 = ((maxSpeed - minSpeed) / maxSpeed * 100).toFixed(1);
+            }
+
+            var result = {
+                timestamp: timestamp,
+                ping: format(uiData.pingStatus),
+                jitter: format(uiData.jitterStatus),
+                loss: document.getElementById('highPingPercent').textContent || '0',
+                download: downloadValue,
+                upload: uploadValue,
+                ratio2: ratio2
+            };
+
+            // 중복 검사
+            if (typeof testHistory === 'undefined') {
+                testHistory = [];
+            }
+
+            // 마지막 결과와 비교하여 중복 방지
+            const lastResult = testHistory[testHistory.length - 1];
+            if (!lastResult ||
+                lastResult.timestamp !== result.timestamp ||
+                lastResult.download !== result.download ||
+                lastResult.upload !== result.upload) {
+                testHistory.push(result);
+                try {
+                    updateHistoryDisplay();
+                    sendTestHistory();
+                    saveToLocalStorage();
+                } catch (e) {
+                    console.error("Error in saveTestResult:", e);
+                }
+            }
+        }
+
+        function updateHistoryDisplay() {
+            try {
+                var tableBody = document.querySelector("#historyTable tbody");
+                if (!tableBody) {
+                    console.error("History table body not found");
+                    return;
+                }
+
+                tableBody.innerHTML = '';
+
+                for (var i = testHistory.length - 1; i >= 0; i--) {
+                    var result = testHistory[i];
+                    // ratio2가 없는 경우를 대비해 계산
+                    if (result.ratio2 === undefined && result.download && result.upload) {
+                        var maxSpeed = Math.max(result.download, result.upload);
+                        var minSpeed = Math.min(result.download, result.upload);
+                        result.ratio2 = ((maxSpeed - minSpeed) / maxSpeed * 100).toFixed(1);
+                    }
+
+                    var row = document.createElement('tr');
+
+                    var cells = [
+                        result.timestamp,
+                        result.ping,
+                        result.jitter,
+                        result.loss,
+                        result.download,
+                        result.upload,
+                        result.ratio2 // 비율 열 추가
+                    ];
+
+                    cells.forEach(function (cellData) {
+                        var cell = document.createElement('td');
+                        cell.textContent = cellData;
+                        row.appendChild(cell);
+                    });
+
+                    tableBody.appendChild(row);
+                }
+
+                var testHistoryElement = document.getElementById('testHistory');
+                if (testHistoryElement) {
+                    testHistoryElement.style.display = 'block';
+                    testHistoryElement.style.overflowY = testHistory.length > 2 ? 'scroll' : 'hidden';
+                }
+            } catch (e) {
+                console.error("Error in updateHistoryDisplay:", e);
+            }
+        }
+
+
+
+        function updateConnectionInfoAfterTests() {
+
+            const ispElement = document.getElementById('isp');
+            if (ispElement && ispElement.textContent && ispElement.textContent !== 'N/A') {
+                // ISP 정보가 이미 있으면 함수 종료 
+                if (!autoRunInitialized) {
+                    //setTimeout(autoRun, 500);
+                }
+                return;
+            }
+
+            console.log("Rechecking ISP information after tests...");
+            console.log("Rechecking ISP information after tests...");
+
+            function tryPrimaryService() {
+                var xhr = new XMLHttpRequest();
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            try {
+                                var data = JSON.parse(xhr.responseText);
+                                // Remove AS number from ISP name
+                                var isp = data.org.split(' ');
+                                isp.shift();
+                                document.getElementById('isp').textContent = isp.join(' ');
+                                document.getElementById('location').textContent =
+                                    data.city + ', ' + data.region + ', ' + data.country;
+                            } catch (e) {
+                                console.error('Primary service error:', e);
+                                tryBackupService();
+                            }
+                        } else {
+                            console.error('Primary service failed, trying backup');
+                            tryBackupService();
+                        }
+                    }
+                };
+
+                xhr.open('GET', 'https://ipinfo.io/json?token=e9915373839e4d', true);
+                xhr.timeout = 1500;
+                xhr.send();
+            }
+
+            function tryBackupService() {
+                var xhr = new XMLHttpRequest();
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            try {
+                                var data = JSON.parse(xhr.responseText);
+                                document.getElementById('isp').textContent = data.org;
+                                document.getElementById('location').textContent =
+                                    data.city + ', ' + data.region + ', ' + data.country_name;
+                            } catch (e) {
+                                console.error('Backup service error:', e);
+                            }
+                        }
+                    }
+                };
+
+                xhr.open('GET', 'https://ipapi.co/json/', true);
+                xhr.timeout = 1000;
+                xhr.send();
+            }
+
+            tryPrimaryService();
+        }
+
+        // Modify the existing onend callback in startStop function
+        s.onend = function (aborted) {
+            console.log('s.onend 실행됨, aborted:', aborted);
+            I("startStopBtn").className = "";
+            I("server").disabled = false;
+
+            if (aborted) {
+                isAutoRun = false;
+                autoRunInitialized = false;
+                manualStop = true;
+                // 모든 타이머 해제
+                if (window.autoRunTimer) {
+                    clearTimeout(window.autoRunTimer);
+                    window.autoRunTimer = null;
+                }
+                if (window.resourceCleaner) {
+                    clearInterval(window.resourceCleaner);
+                    window.resourceCleaner = null;
+                }
+                if (window.testStatus) {
+                    clearInterval(window.testStatus);
+                    window.testStatus = null;
+                }
+                if (s.updater) {
+                    clearInterval(s.updater);
+                    s.updater = null;
+                }
+                // UI 갱신 중단 (requestAnimationFrame 등)
+                if (window.frameId) {
+                    cancelAnimationFrame(window.frameId);
+                    window.frameId = null;
+                }
+                // worker 해제
+                if (s.worker) {
+                    s.worker.terminate();
+                    s.worker = null;
+                }
+                return;
+            }
+
+
+            if (!aborted) {
+                updateUI(true);
+
+                /*
+                const currentTime = new Date().getTime();
+                if (!lastTestTime || currentTime - lastTestTime > 1000) {
+                    lastTestTime = currentTime;
+                    saveTestResult();
+                    updateHistoryDisplay();
+                    
+                    if (isAutoRun && runCount < maxRuns - 1) {
+                        runCount++;
+                        console.log(`Completed run ${runCount} of ${maxRuns}`);
+                        setTimeout(function() {
+                            startStop();
+                        }, 2000);
+                    } else if (isAutoRun && runCount === maxRuns - 1) {
+                        console.log("Auto run sequence completed");
+                        isAutoRun = false;
+                        runCount = 0;
+                        sendTestHistory();
+                        autoRunInitialized = false;
+                        // Add ISP recheck after tests complete
+                        setTimeout(updateConnectionInfoAfterTests, 1000);
+                    }
+                }
+                */
+            }
+        };
+
+        // 페이지 로드 시 테이블 초기화
+        window.addEventListener('load', function () {
+            testHistory = []; // 테스트 기록 배열 초기화
+            var tableBody = document.querySelector("#historyTable tbody");
+            if (tableBody) {
+                tableBody.innerHTML = ''; // 테이블 내용 초기화
+            }
+        });
+
+        Speedtest.prototype.abort = function () {
+            console.log('abort 호출됨');
+            if (this._state < 3) throw "You cannot abort a test that's not started yet";
+            if (this._state < 4) {
+                try {
+                    // 여기를 아래처럼 바꿔주세요!
+                    if (this.worker) {
+                        console.log('abort에서 postMessage 호출', new Error().stack);
+                        this.worker.postMessage('abort');
+                    }
+                    this._state = 5;
+                    if (this.updater) {
+                        clearInterval(this.updater);
+                        this.updater = null;
+                    }
+                    if (this.worker) {
+                        this.worker.terminate();
+                        this.worker = null;
+                    }
+                } catch (e) {
+                    console.error("Abort error:", e);
+                }
+            }
+        };
+
+        function updateUI(forced) {
+            if (s.getState() >= 4 && !forced) return;   //1단계 해결
+            try {
+                var btn = document.getElementById('startStopBtn');
+                if (btn) {
+                    if (s.getState() == 3) {
+                        btn.className = 'running';
+                        setBtnLabel('중지');
+                    } else {
+                        btn.className = '';
+                        setBtnLabel('시작');
+                    }
+                }
+
+                if (!forced && s.getState() != 3) return;
+                if (typeof uiData === 'undefined' || uiData === null) return; // 수정된 부분
+                if (forced && manualStop && s.getState() != 3) return;
+
+                var status = uiData.testState;
+                I("ip").textContent = uiData.clientIp;
+
+                // 테스트 상태에 따른 UI 업데이트
+                // 핑 테스트 중이거나 테스트 시작 단계일 경우 (상태 0 또는 달리 명시되지 않은 모든 상태)
+                if (status !== 1 && status !== 3 && status !== 4 && status !== 5) {
+                    // 핑 테스트 중 또는 초기 단계에서는 다운로드와 업로드 값을 모두 0으로 표시
+                    I("dlText").textContent = "0.0";
+                    drawMeter(I("dlMeter"), 0, meterBk, dlColor, 0, progColor);
+                    I("ulText").textContent = "0.0";
+                    drawMeter(I("ulMeter"), 0, meterBk, ulColor, 0, progColor);
+                } else if (status == 1) {
+                    // 다운로드 테스트 중
+                    I("dlText").textContent = (uiData.dlStatus == 0) ? "..." : format(uiData.dlStatus);
+                    drawMeter(I("dlMeter"), mbpsToAmount(Number(uiData.dlStatus * oscillate())), meterBk, dlColor, Number(uiData.dlProgress), progColor);
+                    // 업로드는 0으로 표시
+                    I("ulText").textContent = "0.0";
+                    drawMeter(I("ulMeter"), 0, meterBk, ulColor, 0, progColor);
+                } else if (status == 3) {
+                    // 업로드 테스트 중
+                    // 다운로드는 마지막 측정 값 표시
+                    I("dlText").textContent = format(uiData.dlStatus);
+                    drawMeter(I("dlMeter"), mbpsToAmount(Number(uiData.dlStatus)), meterBk, dlColor, 1, progColor);
+                    // 업로드 상태 업데이트
+                    I("ulText").textContent = (uiData.ulStatus == 0) ? "..." : format(uiData.ulStatus);
+                    drawMeter(I("ulMeter"), mbpsToAmount(Number(uiData.ulStatus * oscillate())), meterBk, ulColor, Number(uiData.ulProgress), progColor);
+                } else {
+                    // 테스트 완료 또는 오류 상태 (4 또는 5)
+                    I("dlText").textContent = format(uiData.dlStatus);
+                    drawMeter(I("dlMeter"), mbpsToAmount(Number(uiData.dlStatus)), meterBk, dlColor, 1, progColor);
+                    I("ulText").textContent = format(uiData.ulStatus);
+                    drawMeter(I("ulMeter"), mbpsToAmount(Number(uiData.ulStatus)), meterBk, ulColor, 1, progColor);
+                }
+
+                // 핑 관련 정보 업데이트
+                I("pingText").textContent = format(uiData.pingStatus);
+                I("jitText").textContent = format(uiData.jitterStatus);
+
+                if (uiData && uiData.sonStatus) {
+                    let lossRate = Math.round(parseFloat(uiData.sonStatus)); // 소수점 제거
+                    I("highPingPercent").textContent = `${lossRate}`;
+                } else {
+                    I("highPingPercent").textContent = `0`;
+                }
+
+                // 다운로드/업로드 지터 정보 업데이트
+                if (status == 1) { // 다운로드 테스트 중
+                    const dlJitterElem = document.getElementById('dlJitterText');
+                    if (dlJitterElem && uiData.dlJitterStatus) {
+                        dlJitterElem.textContent = format(uiData.dlJitterStatus);
+                    }
+                }
+
+                if (status == 3) { // 업로드 테스트 중
+                    const ulJitterElem = document.getElementById('ulJitterText');
+                    if (ulJitterElem && uiData.ulJitterStatus) {
+                        ulJitterElem.textContent = format(uiData.ulJitterStatus);
+                    }
+                }
+
+                // Chrome 50 버전 호환성을 위한 추가 처리
+                if (forced || status == 4 || status == 5) {
+                    var btn = document.getElementById('startStopBtn');
+                    if (btn) {
+                        btn.className = '';
+                        setBtnLabel('시작');
+                        document.getElementById('server').disabled = false;
+                    }
+                }
+
+                // 테스트 완료 후 상태 업데이트
+                if (status >= 4) {
+                    clearInterval(window.testStatus);
+                    window.testStatus = null;
+                    if (document.getElementById('dlJitterText')) {
+                        document.getElementById('dlJitterText').textContent = '-';
+                    }
+                    if (document.getElementById('ulJitterText')) {
+                        document.getElementById('ulJitterText').textContent = '-';
+                    }
+                }
+
+                // 오류 상태 처리
+                if (status == 5) {
+                    var btn = document.getElementById('startStopBtn');
+                    if (btn) {
+                        btn.className = '';
+                        setBtnLabel('시작');
+                    }
+                    if (document.getElementById('server')) {
+                        document.getElementById('server').disabled = false;
+                    }
+                }
+
+            } catch (e) {
+                console.error("UpdateUI error:", e);
+            }
+        }
+
+        function oscillate() {
+            return 1 + 0.02 * Math.sin(Date.now() / 100);
+        }
+
+        window.requestAnimationFrame = window.requestAnimationFrame ||
+            window.webkitRequestAnimationFrame ||
+            window.mozRequestAnimationFrame ||
+            window.msRequestAnimationFrame ||
+            function (callback) { setTimeout(callback, 1000 / 60); };
+
+        function frame() {
+            requestAnimationFrame(frame);
+            updateUI();
+        }
+        frame();
+
+
+        let connectionInfoExecuted = false;
+
+
+        function updateConnectionInfo() {
+
+            if (connectionInfoExecuted) return;
+            connectionInfoExecuted = true;
+
+            const ispElement = document.getElementById('isp');
+            if (ispElement && ispElement.textContent && ispElement.textContent !== 'N/A') {
+                // ISP 정보가 이미 있으면 자동실행만 처리하고 함수 종료
+                if (!autoRunInitialized) {
+                    //setTimeout(autoRun, 500);
+                }
+                return;
+            }
+
+            // 이미 실행 중인지 확인
+            if (updateConnectionInfo.isRunning) {
+                console.log('Connection info update already in progress');
+                return;
+            }
+
+            updateConnectionInfo.isRunning = true;
+
+            // 초기 로딩 상태 표시
+            const initialDisplay = {
+                ip: document.getElementById('ip'),
+                isp: document.getElementById('isp'),
+                location: document.getElementById('location')
+            };
+
+            // 기본값으로 초기화
+            initialDisplay.ip.textContent = "N/A";
+            initialDisplay.isp.textContent = "N/A";
+            initialDisplay.location.textContent = "N/A";
+
+            var xhr = new XMLHttpRequest();
+            var timeoutTimer;
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    clearTimeout(timeoutTimer);
+                    if (xhr.status === 200) {
+                        try {
+                            var data = JSON.parse(xhr.responseText);
+                            updateUIWithData(data);
+                            updateConnectionInfo.isRunning = false;
+
+                            if (!autoRunInitialized) {
+                                //setTimeout(autoRun, 500);
+                            }
+                        } catch (e) {
+                            console.error('Primary service error:', e);
+                            tryBackupService();
+                        }
+                    } else {
+                        console.error('Primary service failed, trying backup');
+                        tryBackupService();
+                    }
+                }
+            };
+
+            function tryBackupService() {
+                var backupXhr = new XMLHttpRequest();
+                var backupTimer;
+
+                backupXhr.onreadystatechange = function () {
+                    if (backupXhr.readyState === 4) {
+                        clearTimeout(backupTimer);
+                        updateConnectionInfo.isRunning = false;
+
+                        if (backupXhr.status === 200) {
+                            try {
+                                var data = JSON.parse(backupXhr.responseText);
+                                updateUIWithData(data, true);
+
+                                if (!autoRunInitialized) {
+                                    //setTimeout(autoRun, 500);
+                                }
+                            } catch (e) {
+                                console.error('Backup service error:', e);
+                                handleAllServicesFailed();
+                            }
+                        } else {
+                            handleAllServicesFailed();
+                        }
+                    }
+                };
+
+                backupXhr.open('GET', 'https://ipapi.co/json/', true);
+                backupXhr.timeout = 2000;  // 2초로 증가
+
+                backupTimer = setTimeout(function () {
+                    backupXhr.abort();
+                    updateConnectionInfo.isRunning = false;
+                    handleAllServicesFailed();
+                }, 3000);  // 3초로 증가
+
+                backupXhr.send();
+            }
+
+            function updateUIWithData(data, isBackup = false) {
+                if (!isBackup) {
+                    // 주 서비스 데이터 처리
+                    var isp = data.org.split(' ');
+                    isp.shift();  // AS 번호 제거
+                    initialDisplay.isp.textContent = isp.join(' ');
+                    initialDisplay.location.textContent =
+                        data.city + ', ' + data.region + ', ' + data.country;
+                } else {
+                    // 백업 서비스 데이터 처리
+                    initialDisplay.isp.textContent = data.org;
+                    initialDisplay.location.textContent =
+                        data.city + ', ' + data.region + ', ' + data.country_name;
+                }
+                initialDisplay.ip.textContent = data.ip;
+            }
+
+            function handleAllServicesFailed() {
+                console.log('All IP info services failed');
+                // 실패해도 테스트는 시작
+                if (!autoRunInitialized) {
+                    //setTimeout(autoRun, 500);
+                }
+
+                // 실패 시 기본 텍스트 표시
+                initialDisplay.isp.textContent = "N/A";
+                initialDisplay.location.textContent = "N/A";
+            }
+
+            // 주 서비스 요청 설정
+            xhr.open('GET', 'https://ipinfo.io/json?token=e9915373839e4d', true);
+            xhr.timeout = 2500;  // 2초로 증가
+
+            // 전체 타임아웃 설정
+            timeoutTimer = setTimeout(function () {
+                xhr.abort();
+                updateConnectionInfo.isRunning = false;
+                tryBackupService();
+            }, 3500);  // 3초로 증가
+
+            xhr.send();
+        }
+        // 정적 플래그 초기화
+        updateConnectionInfo.isRunning = false;
+
+
+
+        /* 기존 isp출력
+        function updateConnectionInfo() {
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        try {
+                            var data = JSON.parse(xhr.responseText);
+                            document.getElementById('ip').textContent = data.ip;
+                            document.getElementById('isp').textContent = data.org;
+                            document.getElementById('location').textContent = data.city + ', ' + data.region + ', ' + data.country_name;
+                        } catch (e) {
+                            console.error('JSON parsing error:', e);
+                        }
+                    }
+                }
+            };
+            xhr.open('GET', 'https://ipapi.co/json/', true);
+            xhr.send();
+            document.getElementById('dns').textContent = "Unable to retrieve DNS information client-side";
+        }
+        */
+
+        /*
+        function updateConnectionInfo() {
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        try {
+                            var data = JSON.parse(xhr.responseText);
+                            document.getElementById('ip').textContent = data.ip;
+                            // AS 번호 제거
+                            var isp = data.org.split(' ');
+                            isp.shift(); // 첫 번째 요소(AS 번호) 제거
+                            document.getElementById('isp').textContent = isp.join(' ');
+                            document.getElementById('location').textContent = data.city + ', ' + data.region + ', ' + data.country;
+                        } catch (e) {
+                            console.error('JSON parsing error:', e);
+                        }
+                    }
+                }
+            };
+            xhr.open('GET', 'https://ipinfo.io/json?token=e9915373839e4d', true);
+            xhr.send();
+        }
+        */
+
+
+        function showRunProgress(current, total) {
+            var el = document.getElementById('runProgress');
+            if (!el) return;
+            el.textContent = current + '/' + total + '회 측정중';
+            el.style.display = 'block';
+        }
+
+        function hideRunProgress() {
+            var el = document.getElementById('runProgress');
+            if (el) el.style.display = 'none';
+        }
+
+        // 초기화할 때 상태 리셋
+        function setBtnLabel(text) {
+            var lbl = document.getElementById('startStopLabel');
+            if (lbl) lbl.textContent = text;
+        }
+
+        function initUI() {
+            var btn = document.getElementById('startStopBtn');
+            if (btn) {
+                setBtnLabel('시작');
+                btn.className = '';
+            }
+
+            drawMeter(I("dlMeter"), 0, meterBk, dlColor, 0);
+            drawMeter(I("ulMeter"), 0, meterBk, ulColor, 0);
+            I("dlText").textContent = "";
+            I("ulText").textContent = "";
+            I("pingText").textContent = "";
+            I("jitText").textContent = "";
+            I("ip").textContent = "";
+            I("highPingPercent").textContent = "0";
+
+            //updateConnectionInfo();
+        }
+
+        function maskIpForApi(ipAddress) {
+            var ip = String(ipAddress || '').trim();
+            var ipv4Parts = ip.split('.');
+
+            if (ipv4Parts.length === 4 && ipv4Parts.every(function (part) {
+                return /^\d{1,3}$/.test(part);
+            })) {
+                ipv4Parts[3] = '***';
+                return ipv4Parts.join('.');
+            }
+
+            return ip;
+        }
+
+        function sendTestHistory() {
+            // 테스트 기록이 없으면 종료
+            if (testHistory.length === 0) return;
+
+            // ISP 정보 가져오기
+            const ispElement = document.getElementById('isp');
+            const ispInfo = ispElement ? ispElement.textContent : '';
+
+            // IP 주소 가져오기
+            fetch(DATA_API_BASE + 'getIP.php')
+                .then(response => response.json())
+                .then(data => {
+                    const ipAddress = maskIpForApi(data.ip);
+
+                    // 테스트 데이터 문자열 생성
+                    var testData = testHistory.map(function (result) {
+                        return result.ping + '/' + result.download + '/' + result.upload;
+                    }).join('/');
+
+                    // URL 파라미터 가져오기
+                    var hddid = getUrlParameter('hddid');
+                    hddid5 = hddid;
+                    var hdid = getUrlParameter('hdid');
+
+
+                    // senee.php용 상세 결과 데이터 준비
+                    var allResults = testHistory.map(function (result) {
+                        return [
+                            result.ping || '0',
+                            result.download || '0',
+                            result.upload || '0',
+                            result.jitter || '0',
+                            result.loss || '0',
+                            result.ratio2 || '0'
+                        ].join('/')
+                    }).join('||');
+
+                    // 공통 파라미터 문자열 생성
+                    var commonParams = 'data=' + encodeURIComponent(allResults) +
+                        '&ip=' + encodeURIComponent(ipAddress) +
+                        '&isp=' + encodeURIComponent(ispInfo);
+
+                    // hddid와 hdid 파라미터 추가
+                    if (hddid) {
+                        commonParams += '&hddid=' + encodeURIComponent(hddid);
+                    }
+                    if (hdid) {
+                        commonParams += '&hdid=' + encodeURIComponent(hdid);
+                    }
+
+                    // 첫 번째 senee.php로 전송 (현재 도메인)
+                    var seneeUrl1 = DATA_API_BASE + 'senee.php?' + commonParams;
+
+                    var seneeXhr1 = new XMLHttpRequest();
+                    seneeXhr1.open('GET', seneeUrl1, true);
+                    var seneeRound = testHistory.length;
+                    seneeXhr1.onload = function () {
+                        console.log('[' + seneeRound + '회차] senee.php 전송 완료:', seneeUrl1);
+                        console.log('[' + seneeRound + '회차] 응답:', seneeXhr1.responseText);
+                    };
+                    seneeXhr1.onerror = function () {
+                        console.error('[' + seneeRound + '회차] senee.php 전송 실패');
+                    };
+                    seneeXhr1.send();
+
+
+                })
+                .catch(error => {
+                    console.error('IP 가져오기 실패:', error);
+                    // IP 가져오기 실패시 백업 함수 호출
+                    sendTestDataWithoutIP();
+                });
+        }
+
+
+        // IP 정보 없이 데이터를 전송하는 백업 함수
+        function sendTestDataWithoutIP() {
+            // ISP 정보 가져오기
+            const ispElement = document.getElementById('isp');
+            const ispInfo = ispElement ? ispElement.textContent : '';
+
+            // 테스트 데이터 문자열 생성
+            var testData = testHistory.map(function (result) {
+                return result.ping + '/' + result.download + '/' + result.upload;
+            }).join('/');
+
+            // URL 파라미터 가져오기
+            var hddid = getUrlParameter('hddid');
+            var hdid = getUrlParameter('hdid');
+
+
+            // senee.php용 상세 결과 데이터 준비
+            var allResults = testHistory.map(function (result) {
+                return [
+                    result.ping || '0',
+                    result.download || '0',
+                    result.upload || '0',
+                    result.jitter || '0',
+                    result.loss || '0',
+                    result.ratio2 || '0'
+                ].join('/')
+            }).join('||');
+
+            // 공통 파라미터 문자열 생성 (IP 없이)
+            var commonParams = 'data=' + encodeURIComponent(allResults) +
+                '&isp=' + encodeURIComponent(ispInfo);
+
+            // hddid와 hdid 파라미터 추가
+            if (hddid) {
+                commonParams += '&hddid=' + encodeURIComponent(hddid);
+            }
+            if (hdid) {
+                commonParams += '&hdid=' + encodeURIComponent(hdid);
+            }
+
+            // 첫 번째 senee.php로 전송 (현재 도메인)
+            var seneeUrl1 = DATA_API_BASE + 'senee.php?' + commonParams;
+
+            var seneeXhr1 = new XMLHttpRequest();
+            seneeXhr1.open('GET', seneeUrl1, true);
+            seneeXhr1.onload = function () {
+                console.log('첫 번째 senee.php (백업) 전송 완료:', seneeUrl1);
+            };
+            seneeXhr1.send();
+
+        }
+
+
+        function getUrlParameter(name) {
+            name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+            var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+            var results = regex.exec(location.search);
+
+            // hddid 처리
+            if (name === 'hddid') {
+                var hddid = '';
+                var hdid = '';
+
+                // URL에서 기본 hddid를 찾음
+                var hddidResults = regex.exec(location.search);
+                if (hddidResults !== null) {
+                    hddid = decodeURIComponent(hddidResults[1].replace(/\+/g, ' '));
+                }
+
+                // id 파라미터 확인
+                var idRegex = new RegExp('[\\?&]id=([^&#]*)');
+                var idResults = idRegex.exec(location.search);
+                if (idResults !== null) {
+                    var idValue = decodeURIComponent(idResults[1].replace(/\+/g, ' '));
+                    // id가 3글자를 초과하면 hddid 값을 덮어씀
+                    if (idValue.length > 3) {
+                        hddid = idValue;
+                    }
+                }
+
+                // hddid가 없으면 localStorage에서 확인
+                if (!hddid) {
+                    hddid = localStorage.getItem('speedtest_hddid');
+                }
+
+                // 여전히 없으면 새로운 hddid 생성
+                if (!hddid) {
+                    var now = new Date();
+                    var timestamp = now.getFullYear() +
+                        String(now.getMonth() + 1).padStart(2, '0') +
+                        String(now.getDate()).padStart(2, '0') +
+                        String(now.getHours()).padStart(2, '0') +
+                        String(now.getMinutes()).padStart(2, '0') +
+                        String(now.getSeconds()).padStart(2, '0');
+                    hddid = 'default_' + timestamp;
+                    localStorage.setItem('speedtest_hddid', hddid);
+                }
+
+                return hddid;
+            }
+
+            // hdid 처리
+            if (name === 'hdid') {
+                var hdidResults = regex.exec(location.search);
+                if (hdidResults !== null) {
+                    return decodeURIComponent(hdidResults[1].replace(/\+/g, ' '));
+                }
+                // hdid가 없으면 localStorage에서 확인
+                var storedHdid = localStorage.getItem('speedtest_hdid');
+                if (storedHdid) {
+                    return storedHdid;
+                }
+                return ''; // hdid가 없으면 빈 문자열 반환
+            }
+
+            // 그 외 일반적인 파라미터 처리
+            return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+        }
+
+
+
+        // 재시도 함수
+        function retryRequest(url) {
+            console.log('데이터 전송 재시도 중...');
+            setTimeout(function () {
+                var retryXhr = new XMLHttpRequest();
+                retryXhr.open('GET', url, true);
+                retryXhr.withCredentials = false;
+
+                retryXhr.onload = function () {
+                    if (retryXhr.status >= 200 && retryXhr.status < 300) {
+                        console.log('재시도 전송 성공');
+                    } else {
+                        console.error('재시도 전송 실패:', retryXhr.status);
+                    }
+                };
+
+                retryXhr.onerror = function () {
+                    console.error('재시도 중 오류 발생');
+                };
+
+                try {
+                    retryXhr.send();
+                } catch (error) {
+                    console.error('재시도 중 오류:', error);
+                }
+            }, 2000); // 2초 후 재시도
+        }
+
+        function getUrlParameter(name) {
+            name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+            var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+            var results = regex.exec(location.search);
+
+            // hddid 처리
+            if (name === 'hddid') {
+                var hddid = '';
+
+                // URL에서 기본 hddid를 찾음
+                var hddidResults = regex.exec(location.search);
+                if (hddidResults !== null) {
+                    hddid = decodeURIComponent(hddidResults[1].replace(/\+/g, ' '));
+                }
+
+                // id 파라미터 확인
+                var idRegex = new RegExp('[\\?&]id=([^&#]*)');
+                var idResults = idRegex.exec(location.search);
+                if (idResults !== null) {
+                    var idValue = decodeURIComponent(idResults[1].replace(/\+/g, ' '));
+                    // id가 3글자를 초과하면 hddid 값을 덮어씀
+                    if (idValue.length > 3) {
+                        hddid = idValue;
+                    }
+                }
+
+                // hddid가 없으면 localStorage에서 확인
+                if (!hddid) {
+                    hddid = localStorage.getItem('speedtest_hddid');
+                }
+
+                // 여전히 없으면 새로운 hddid 생성
+                if (!hddid) {
+                    var now = new Date();
+                    var timestamp = now.getFullYear() +
+                        String(now.getMonth() + 1).padStart(2, '0') +
+                        String(now.getDate()).padStart(2, '0') +
+                        String(now.getHours()).padStart(2, '0') +
+                        String(now.getMinutes()).padStart(2, '0') +
+                        String(now.getSeconds()).padStart(2, '0');
+                    hddid = 'default_' + timestamp;
+                    localStorage.setItem('speedtest_hddid', hddid);
+                }
+
+                return hddid;
+            }
+
+            return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+        }
+
+
+
+        // 전역 변수로 마우스 좌표 선언
+        let mouseX = 0;
+        let mouseY = 0;
+
+        // 마우스 이동 시 좌표 업데이트
+        document.addEventListener('mousemove', function (e) {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+
+        // F6 키 누를 때 좌표 표시
+        document.addEventListener('keydown', function (e) {
+            // F6 키의 keyCode는 117입니다
+            if (e.keyCode === 117) {
+                // 기본 동작 방지
+                e.preventDefault();
+
+                // 팝업 창으로 좌표 표시
+                alert(`마우스 좌표:\nX: ${mouseX}\nY: ${mouseY}`);
+            }
+        });
+
+
+        function toggleHistory() {
+            var historyElement = document.getElementById('testHistory');
+            var toggleBtn = document.getElementById('toggleHistoryBtn');
+
+            historyElement.style.display = historyElement.style.display === 'none' ? 'block' : 'none';
+            toggleBtn.textContent = historyElement.style.display === 'none' ? '기록표 열기' : '기록표 닫기';
+        }
+
+        function saveToLocalStorage() {
+            var existingHistory = JSON.parse(localStorage.getItem('speedTestHistory')) || [];
+            existingHistory.push.apply(existingHistory, testHistory);
+            localStorage.setItem('speedTestHistory', JSON.stringify(existingHistory));
+        }
+
+        function loadFromLocalStorage() {
+            var records = JSON.parse(localStorage.getItem('speedTestHistory')) || [];
+            var uniqueRecords = [];
+            var seenTimestamps = {};
+
+            for (var i = records.length - 1; i >= 0; i--) {
+                if (!seenTimestamps[records[i].timestamp]) {
+                    uniqueRecords.unshift(records[i]);
+                    seenTimestamps[records[i].timestamp] = true;
+                }
+            }
+
+            return uniqueRecords;
+        }
+
+
+
+        function showPreviousRecords() {
+            var records = loadFromLocalStorage();
+            var tableBody = document.querySelector("#previousHistoryTable tbody");
+            tableBody.innerHTML = '';
+
+            for (var i = 0; i < records.length; i++) {
+                var result = records[i];
+                var row = tableBody.insertRow();
+                row.insertCell(0).textContent = result.timestamp;
+                row.insertCell(1).textContent = result.ping;
+                row.insertCell(2).textContent = result.jitter || 'N/A';
+                row.insertCell(3).textContent = result.loss || 'N/A';
+                row.insertCell(4).textContent = result.download;
+                row.insertCell(5).textContent = result.upload;
+                row.insertCell(6).textContent = result.ratio2 || 'N/A';  // ratio2 표시 추가
+            }
+
+            document.getElementById('previousHistory').style.display = 'block';
+        }
+        function hidePreviousRecords() {
+            document.getElementById('previousHistory').style.display = 'none';
+        }
+
+        function clearLocalStorage() {
+            if (confirm("모든 저장된 기록을 삭제하시겠습니까?")) {
+                localStorage.removeItem('speedTestHistory');
+                alert("모든 기록이 삭제되었습니다.");
+                hidePreviousRecords();
+            }
+        }
+
+        function exportLocalStorage() {
+            var records = JSON.parse(localStorage.getItem('speedTestHistory')) || [];
+            var csvContent = "data:text/csv;charset=utf-8,Timestamp,Ping (ms),Download (Mbps),Upload (Mbps)\n";
+
+            for (var i = 0; i < records.length; i++) {
+                var r = records[i];
+                csvContent += r.timestamp + "," + r.ping + "," + r.download + "," + r.upload + "\n";
+            }
+
+            var encodedUri = encodeURI(csvContent);
+            var link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "speed_test_history.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function initPage() {
+            var historyElement = document.getElementById('testHistory');
+            var toggleBtn = document.getElementById('toggleHistoryBtn');
+            var showPreviousBtn = document.getElementById('showPreviousRecordsBtn');
+
+            historyElement.style.display = 'none';
+            toggleBtn.textContent = '기록표 열기';
+
+            toggleBtn.addEventListener('click', toggleHistory);
+            showPreviousBtn.addEventListener('click', showPreviousRecords);
+
+            // 초기 서버 설정
+            if (!SPEEDTEST_SERVERS || SPEEDTEST_SERVERS.length === 0) {
+                SPEEDTEST_SERVERS = [{
+                    name: "MilkT Speedcheck",
+                    server: "https://speedcheck.milkt.co.kr/",
+                    //server: window.location.origin + "/",
+                    //server: "https://inspeedtest.duckdns.org/", 
+                    //server: "https://inspeedtest.ddns.net/speed/", 
+                    //server: "https://milkt.iptime.org/speed/", 
+                    dlURL: "backend/garbage.php",
+                    ulURL: "backend/empty.php",
+                    pingURL: "backend/empty.php",
+                    getIpURL: "backend/getIP.php"
+                }];
+            }
+        }
+
+        window.onload = function () {
+            try {
+                initServers();
+                initPage();
+
+                // 측정 중 횟수 변경 시 manualMaxRuns 동적 반영
+                var repeatEl = document.getElementById('repeatCount');
+                if (repeatEl) {
+                    repeatEl.addEventListener('change', function () {
+                        if (s.getState() == 3 && !isAutoRun && !manualStop) {
+                            var newMax = parseInt(this.value) || 1;
+                            var minAllowed = manualRunCount + 1;
+                            if (newMax < minAllowed) {
+                                newMax = minAllowed;
+                                this.value = newMax;
+                            }
+                            manualMaxRuns = newMax;
+                            showRunProgress(manualRunCount + 1, manualMaxRuns);
+                        }
+                    });
+                }
+
+                // 서버 선택 완료 후 자동실행 시작
+                var serverInitInterval = setInterval(function () {
+                    if (s.getState() == 0) {  // 서버 초기화가 완료된 상태
+                        clearInterval(serverInitInterval);
+                        console.log("Server initialized, starting auto run");
+                        //setTimeout(autoRun, 1000);  // 1초 후 자동실행 시작
+                    }
+                }, 100);
+
+                // 백업 타이머: 10초 후에도 시작되지 않았다면 강제 시작
+                setTimeout(function () {
+                    if (!autoRunInitialized) {
+                        console.log("Backup timer triggered, forcing auto run");
+                        autoRun();
+                    }
+                }, 10000);
+
+            } catch (e) {
+                console.error("Initialization error:", e);
+                // 오류 발생 시 기본 서버로 진행
+                s.setSelectedServer(SPEEDTEST_SERVERS[0]);
+                I("loading").className = "hidden";
+                I("testWrapper").className = "visible";
+                initUI();
+                //setTimeout(autoRun, 1000);
+            }
+        };
+
+        // 브라우저 호환성을 위한 폴리필
+        if (!String.prototype.padStart) {
+            String.prototype.padStart = function padStart(targetLength, padString) {
+                targetLength = targetLength >> 0;
+                padString = String(padString || ' ');
+                if (this.length > targetLength) {
+                    return String(this);
+                } else {
+                    targetLength = targetLength - this.length;
+                    if (targetLength > padString.length) {
+                        padString += padString.repeat(targetLength / padString.length);
+                    }
+                    return padString.slice(0, targetLength) + String(this);
+                }
+            };
+        }
+
+        // 안전한 JSON 파싱
+        function safeJSONParse(str) {
+            try {
+                return JSON.parse(str);
+            } catch (e) {
+                console.error("JSON parsing error:", e);
+                return null;
+            }
+        }
+
+        // XHR 요청 생성 함수
+        function createXHRRequest(method, url, timeout) {
+            var xhr = new XMLHttpRequest();
+            xhr.open(method, url, true);
+            if (timeout) {
+                xhr.timeout = timeout;
+            }
+            return xhr;
+        }
+
+
+        function hasCurrentTestResults() {
+            return document.querySelectorAll('#historyTable tbody tr').length > 0;
+        }
+
+        function openCurrentTableAnalysis() {
+            var tableRows = document.querySelectorAll('#historyTable tbody tr');
+            var results = [];
+
+            for (var i = 0; i < tableRows.length; i++) {
+                var cells = tableRows[i].cells;
+                if (cells.length < 7) continue;
+                results.push({
+                    timestamp: cells[0].textContent,
+                    ping: cells[1].textContent,
+                    jitter: cells[2].textContent,
+                    loss: cells[3].textContent,
+                    download: cells[4].textContent,
+                    upload: cells[5].textContent,
+                    ratio: cells[6].textContent
+                });
+            }
+
+            if (results.length === 0) {
+                alert('측정할 결과가 없습니다');
+                return;
+            }
+
+            window.open('./anaa6.html#data=' + encodeURIComponent(JSON.stringify({ tests: results })), '_blank');
+        }
+
+        function generateCurrentTestReport() {
+            if (!hasCurrentTestResults()) {
+                alert('측정할 결과가 없습니다');
+                return;
+            }
+
+            openCurrentTableAnalysis();
+        }
+
+
+        function generateCurrentTestReport2() {
+            if (!hasCurrentTestResults()) {
+                alert('측정할 결과가 없습니다');
+                return;
+            }
+
+            openCurrentTableAnalysis();
+        }
+
+
+        // Update the history table headers and structure
+        function updateHistoryTableStructure() {
+            const historyTable = document.querySelector("#historyTable thead tr");
+            historyTable.innerHTML = `
+        <th width="140px" style="margin-top: -10px;">
+
+<button id="clearLocalStorageBtn" onclick="generateCurrentTestReport()">결과 분석</button>
+        </th>
+        <th>지연<br>(ms)</th>
+        <th>편차<br>(ms)</th>
+        <th>손실<br>(%)</th>
+        <th>다운<br>(Mbps)</th>
+        <th>업<br>(Mbps)</th>
+        <th>업/다운<br>(%)</th>
+    `;
+
+            const previousHistoryButtons = document.querySelector("#previousHistory .historyButtons");
+            previousHistoryButtons.innerHTML = `
+        <button id="clearLocalStorageBtn" onclick="generateSpeedReport()">전체 분석</button>
+        <button id="clearLocalStorageBtn" onclick="window.location.href='./pingtest.php'">핑 태스트</button>
+        <button id="clearLocalStorageBtn" onclick="clearLocalStorage()">기록 비우기</button>
+        <button id="clearLocalStorageBtn" onclick="hidePreviousRecords()">닫기</button>
+    `;
+        }
+
+
+
+        // 디바이스 성능에 따른 설정 최적화
+        function optimizeTestSettings() {
+            var isLowEndDevice = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2;
+
+            if (isLowEndDevice) {
+                s.setParameter("xhr_dlMultistream", 3);
+                s.setParameter("xhr_ulMultistream", 2);
+                s.setParameter("time_dlGraceTime", 2);
+                s.setParameter("time_ulGraceTime", 3);
+            }
+        }
+
+        // 페이지 로드 시 최적화 실행
+        optimizeTestSettings();
+
+
+    </script>
+    <style type="text/css">
+        html,
+        body {
+            border: none;
+            padding: 0;
+            margin: 0;
+            background: #FFFFFF;
+            color: #202020;
+        }
+
+        body {
+            text-align: center;
+            font-family: "Roboto", sans-serif;
+            margin-top: 0;
+            padding-top: 0;
+        }
+
+        h1 {
+            color: blue;
+            font-size: 3.4em;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        h1:hover {
+            color: #4040FF;
+        }
+
+        .highlight {
+            color: white;
+        }
+
+        #loading {
+            background-color: #FFFFFF;
+            color: #404040;
+            text-align: center;
+        }
+
+        span.loadCircle {
+            display: inline-block;
+            width: 2em;
+            height: 2em;
+            vertical-align: middle;
+            background: url('speed.png');
+            background-size: 2em 2em;
+            margin-right: 0.5em;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        #splitBtn {
+            display: inline-flex;
+            align-items: stretch;
+            gap: 0;
+            font-size: 15px;
+        }
+
+        #startStopBtn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.6em 1.5em;
+            color: #fff;
+            background:
+                linear-gradient(180deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.04) 50%, rgba(0, 0, 0, 0.12) 100%),
+                linear-gradient(135deg, #FF5555, #BB1010);
+            border: 2.5px solid rgba(255, 255, 255, 0.8);
+            border-right: none;
+            border-radius: 50px 0 0 50px;
+            cursor: pointer;
+            box-shadow: 0 5px 18px rgba(180, 10, 10, 0.55), inset 0 -2px 6px rgba(0, 0, 0, 0.2);
+            transition: filter 0.15s;
+            user-select: none;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+        }
+
+        #startStopBtn:hover {
+            filter: brightness(1.1);
+        }
+
+        #startStopBtn:active {
+            filter: brightness(0.88);
+        }
+
+        #startStopLabel {
+            font-size: 1.1em;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        #repeatCount {
+            -webkit-appearance: none;
+            appearance: none;
+            background:
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='5'%3E%3Cpath d='M0 0l4.5 5L9 0z' fill='rgba(255,255,255,0.9)'/%3E%3C/svg%3E") no-repeat right 10px center,
+                linear-gradient(180deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.04) 50%, rgba(0, 0, 0, 0.12) 100%),
+                linear-gradient(135deg, #4A9FFF, #1244CC);
+            border: 2.5px solid rgba(255, 255, 255, 0.8);
+            border-radius: 0 50px 50px 0;
+            color: #fff;
+            font-size: 1em;
+            font-weight: 700;
+            padding: 0 2.2em 0 1em;
+            cursor: pointer;
+            outline: none;
+            box-shadow: 0 5px 18px rgba(10, 50, 200, 0.5), inset 0 -2px 6px rgba(0, 0, 0, 0.2);
+            transition: filter 0.15s;
+            text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+            letter-spacing: 0.03em;
+        }
+
+        #repeatCount:hover {
+            filter: brightness(1.1);
+        }
+
+        #repeatCount:active {
+            filter: brightness(0.88);
+        }
+
+        #repeatCount option {
+            background: #1a3a9a;
+            color: #fff;
+        }
+
+        #runProgress {
+            display: none;
+            margin-top: 6px;
+            color: #5577cc;
+            font-size: 0.85em;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            text-align: center;
+        }
+
+        #startStopBtn.running {
+            background-color: #FF3030;
+            border-color: #FF6060;
+            color: #FFFFFF;
+        }
+
+
+        #serverArea {
+            margin-top: 1em;
+        }
+
+        #server {
+            font-size: 1em;
+            padding: 0.2em;
+        }
+
+        #test {
+            margin-top: 1em;
+            margin-bottom: 0em;
+        }
+
+        div.testArea {
+            display: inline-block;
+            width: 14em;
+            height: 11.5em;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        div.testArea2 {
+            display: inline-block;
+            width: 10em;
+            height: 6em;
+            position: relative;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        div.testArea div.testName {
+            position: absolute;
+            top: 0.1em;
+            left: 0;
+            width: 100%;
+            font-size: 1.4em;
+            z-index: 9;
+        }
+
+        div.testArea2 div.testName {
+            display: block;
+            text-align: center;
+            font-size: 1.4em;
+        }
+
+        div.testArea div.meterText {
+            position: absolute;
+            bottom: 1.3em;
+            left: 0;
+            width: 100%;
+            font-size: 2.5em;
+            z-index: 9;
+        }
+
+        div.testArea2 div.meterText {
+            display: inline-block;
+            font-size: 2.5em;
+        }
+
+        div.meterText:empty:before {
+            content: "0";
+        }
+
+        div.testArea div.unit {
+            position: absolute;
+            bottom: 2em;
+            left: 0;
+            width: 100%;
+            z-index: 9;
+        }
+
+        div.testArea2 div.unit {
+            display: inline-block;
+        }
+
+        div.testArea canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1 !important;
+        }
+
+        #dlMeter,
+        #ulMeter {
+            top: 0.3em;
+            height: calc(100% - 0.3em);
+        }
+
+        div.testGroup {
+            display: block;
+            margin: 0 auto;
+        }
+
+        #shareArea {
+            width: 95%;
+            max-width: 40em;
+            margin: 0 auto;
+            margin-top: 2em;
+        }
+
+        #shareArea>* {
+            display: block;
+            width: 100%;
+            height: auto;
+            margin: 0.25em 0;
+        }
+
+        #privacyPolicy {
+            position: fixed;
+            top: 2em;
+            bottom: 2em;
+            left: 2em;
+            right: 2em;
+            overflow-y: auto;
+            width: auto;
+            height: auto;
+            box-shadow: 0 0 3em 1em #000000;
+            z-index: 999999;
+            text-align: left;
+            background-color: #FFFFFF;
+            padding: 1em;
+        }
+
+        a.privacy {
+            text-align: center;
+            font-size: 0.8em;
+            color: #808080;
+            padding: 0 3em;
+        }
+
+        div.closePrivacyPolicy {
+            width: 100%;
+            text-align: center;
+        }
+
+        div.closePrivacyPolicy a.privacy {
+            padding: 1em 3em;
+        }
+
+        div.visible {
+            animation: fadeIn 0.4s;
+            display: block;
+        }
+
+        div.hidden {
+            animation: fadeOut 0.4s;
+            display: none;
+        }
+
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeOut {
+            0% {
+                display: block;
+                opacity: 1;
+            }
+
+            100% {
+                display: block;
+                opacity: 0;
+            }
+        }
+
+        #toggleHistoryBtn {
+            position: fixed;
+            top: 10px;
+            right: 80px;
+            z-index: 1001;
+            padding: 5px 10px;
+            background-color: #6060AA;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            display: none;
+            /* 버튼 숨기기 */
+        }
+
+        #toggleHistoryBtn:hover {
+            background-color: #4040FF;
+        }
+
+        #testHistory {
+            display: block;
+            position: relative;
+            /* fixed에서 relative로 변경 */
+            width: 90%;
+            max-width: 420px;
+            /* connectionInfo와 동일한 너비 */
+            margin: 0.5em auto;
+            /* 상하 마진 추가, 좌우 자동 정렬 */
+            background-color: rgba(240, 240, 240, 0.9);
+            padding: 5px;
+            border-radius: 5px;
+            max-height: 130px;
+            /* 높이 제한 */
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+
+        #historyTable,
+        #previousHistoryTable {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75em;
+        }
+
+        #historyTable th,
+        #historyTable td,
+        #previousHistoryTable th,
+        #previousHistoryTable td {
+            padding: 3px;
+            text-align: center;
+            background-color: #fff;
+            border-bottom: 1px solid #eee;
+        }
+
+        #historyTable th,
+        #previousHistoryTable th {
+            background-color: #f2f2f2;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            white-space: nowrap;
+        }
+
+        #historyTable tr:nth-child(even) td,
+        #previousHistoryTable tr:nth-child(even) td {
+            background-color: #f9f9f9;
+        }
+
+        #ipArea {
+            margin-top: 0em;
+            font-size: 1.2em;
+            color: #4040FF;
+        }
+
+        #connectionInfo {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 0.3em;
+            margin-bottom: 0.1em;
+            text-align: left;
+            max-width: 410px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        #connectionInfo div {
+            margin-bottom: 0px;
+            display: flex;
+            align-items: center;
+        }
+
+        .infoLabel {
+            font-weight: bold;
+            width: 65px;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+
+        .infoValue {
+            flex-grow: 1;
+            word-break: break-word;
+        }
+
+        #customPing {
+            margin-top: 2em;
+            margin-bottom: 2em;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .customPingInputGroup {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        #customUrl {
+            padding: 10px;
+            width: 70%;
+            font-size: 16px;
+            border: 1px solid #6060AA;
+            border-radius: 5px 0 0 5px;
+            outline: none;
+        }
+
+        #customPing button {
+            width: 30%;
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #6060AA;
+            color: white;
+            border: 1px solid #6060AA;
+            border-radius: 0 5px 5px 0;
+            transition: background-color 0.3s;
+        }
+
+        #customPing button:hover {
+            background-color: #4040FF;
+        }
+
+        #customPingResult {
+            margin-top: 1em;
+            font-weight: bold;
+            text-align: center;
+            width: 100%;
+        }
+
+        #testHistory::-webkit-scrollbar,
+        #previousHistory::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        #testHistory::-webkit-scrollbar-track,
+        #previousHistory::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        #testHistory::-webkit-scrollbar-thumb,
+        #previousHistory::-webkit-scrollbar-thumb {
+            background: #888;
+        }
+
+        #testHistory::-webkit-scrollbar-thumb:hover,
+        #previousHistory::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        #testHistory,
+        #previousHistory {
+            scrollbar-width: thin;
+            scrollbar-color: #888 #f1f1f1;
+        }
+
+        #previousHistory {
+            display: none;
+            position: fixed;
+            left: 90px;
+            bottom: 200px;
+            width: 80%;
+            max-width: 330px;
+            background-color: rgb(240, 240, 240);
+            padding: 10px;
+            border-radius: 5px;
+            max-height: 45vh;
+            overflow-y: auto;
+            z-index: 10000;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        @media screen and (min-width: 1500px) {
+            #previousHistory {
+                left: 210px;
+            }
+        }
+
+        /* 기존의 모바일 반응형도 유지 */
+        @media screen and (max-width: 768px) {
+            #previousHistory {
+                width: 95%;
+                left: 2.5%;
+                max-height: 45vh;
+                bottom: 45px;
+                max-width: 370px;
+            }
+        }
+
+        #showPreviousRecordsBtn {
+            position: fixed;
+            left: 70px;
+            bottom: 10px;
+            z-index: 1001;
+            padding: 5px 10px;
+            background-color: #6060AA;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        #showPreviousRecordsBtn:hover {
+            background-color: #4040FF;
+        }
+
+        .historyButtons {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 10px;
+        }
+
+        #closePreviousHistoryBtn,
+        #clearLocalStorageBtn,
+        #exportLocalStorageBtn {
+            background-color: #6060AA;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            margin-left: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        #closePreviousHistoryBtn:hover,
+        #clearLocalStorageBtn:hover,
+        #exportLocalStorageBtn:hover {
+            background-color: #4040FF;
+        }
+
+        @media all and (max-width: 40em) {
+            body {
+                font-size: 0.8em;
+            }
+        }
+
+        @media screen and (max-width: 430px) {
+            div.testArea {
+                width: 43vw;
+                height: 35vw;
+            }
+
+            div.testArea div.meterText {
+                font-size: 2em;
+                bottom: 1.3em;
+            }
+
+            div.testArea div.unit {
+                bottom: 1.6em;
+            }
+
+            div.testArea div.testName {
+                font-size: 1.1em;
+            }
+
+            div.testArea2 {
+                width: 29vw;
+                height: auto;
+            }
+
+            div.testArea2 div.testName {
+                font-size: 1.1em;
+            }
+
+            div.testArea2 div.meterText {
+                font-size: 2em;
+            }
+        }
+
+        @media screen and (max-width: 430px) and (orientation: portrait) {
+            #test+div.testGroup {
+                margin-top: 30px;
+            }
+        }
+
+        @media screen and (max-width: 768px) {
+
+
+            #previousHistory {
+                width: 95%;
+                left: 2.5%;
+                max-height: 45vh;
+                bottom: 45px;
+                max-width: 370px;
+            }
+
+            #toggleHistoryBtn,
+            #showPreviousRecordsBtn {
+                font-size: 12px;
+                padding: 3px 6px;
+            }
+
+            #toggleHistoryBtn {
+                top: 5px;
+                right: 5px;
+            }
+
+            #showPreviousRecordsBtn {
+                left: 5px;
+                bottom: 5px;
+            }
+
+            #connectionInfo,
+            #customPing {
+                max-width: 90%;
+            }
+
+            #customPing {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            #customUrl,
+            #customPing button {
+                width: 100%;
+                border-radius: 5px;
+                margin-bottom: 10px;
+            }
+
+            .customPingInputGroup {
+                flex-direction: column;
+            }
+
+            #customUrl,
+            #customPing button {
+                width: 100%;
+                border-radius: 5px;
+                margin-bottom: 10px;
+            }
+
+            .historyButtons {
+                flex-wrap: wrap;
+            }
+
+            #clearLocalStorageBtn,
+            #exportLocalStorageBtn {
+                margin-top: 5px;
+            }
+        }
+
+        @media screen and (max-width: 900px) {
+
+            #kakaoAdLeft,
+            #kakaoAdRight {
+                display: none !important;
+            }
+        }
+
+        @media all and (prefers-color-scheme: dark) {
+
+            html,
+            body,
+            #loading,
+            #centerLoading {
+                background: #202020;
+                color: #F4F4F4;
+            }
+
+            h1 {
+                color: #E0E0E0;
+            }
+
+            a {
+                color: #9090FF;
+            }
+
+            #privacyPolicy {
+                background: #000000;
+            }
+
+            #resultsImg {
+                filter: invert(1);
+            }
+
+            #historyTable th,
+            #historyTable td,
+            #previousHistoryTable th,
+            #previousHistoryTable td {
+                background-color: #222 !important;
+                color: #F4F4F4 !important;
+            }
+
+            #testHistory,
+            #previousHistory {
+                background-color: #222 !important;
+            }
+
+            #connectionInfo {
+                background-color: #222 !important;
+                color: #F4F4F4 !important;
+                border: 1.5px solid #aaa !important;
+                /* 밝은 회색 테두리 */
+                box-shadow: 0 0 8px #2228;
+            }
+        }
+
+        #ip2,
+        .infoLabel2,
+        #ip {
+            display: none;
+        }
+
+        #pria {
+            display: none;
+        }
+
+        .msec-image {
+            position: relative;
+            top: 3px;
+        }
+
+        .testArea canvas {
+            z-index: 1 !important;
+        }
+
+        .testArea .meterText {
+            z-index: 2 !important;
+        }
+
+
+        .unit {
+            z-index: 2 !important;
+        }
+
+        .tooltip {
+            position: relative;
+            z-index: 9998;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: #FFFFFF !important;
+            color: black;
+            text-align: left;
+            border-radius: 6px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+
+            /* z-index 대폭 상승 */
+            position: absolute;
+            z-index: 9999;
+            top: 125%;
+            left: 50%;
+            margin-left: -100px;
+
+            font-size: 12px;
+            line-height: 1.4;
+
+            /* 불투명도 관련 속성 강화 */
+            opacity: 0;
+            transition: opacity 0.3s;
+            background-clip: padding-box;
+            -webkit-backdrop-filter: none;
+            backdrop-filter: none;
+
+            /* 레이어 분리 강화 */
+            transform: translateZ(0);
+            isolation: isolate;
+            mix-blend-mode: normal;
+
+            /* 추가된 속성 */
+            pointer-events: none;
+            contain: paint;
+            background: #FFFFFF !important;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+            background: #FFFFFF !important;
+            pointer-events: auto;
+        }
+
+        #highPingPercent:empty:before {
+            content: none;
+        }
+
+        #highPingPercent {
+            font-size: 2.5em;
+            /* jitText와 동일한 크기 */
+            color: #AA6060;
+        }
+
+        .speedJitter {
+            position: absolute;
+            bottom: -5px;
+            width: 100%;
+            text-align: center;
+            font-size: 0.8em;
+            color: #666;
+        }
+
+        #dlJitterText,
+        #ulJitterText {
+            font-weight: bold;
+        }
+
+        .ads-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1px;
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 1px;
+            flex-wrap: wrap;
+        }
+
+        .ad-container {
+            width: 320px;
+            height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .loading-text-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin-top: -15px;
+        }
+
+        .loader-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            /* 간격을 12px에서 8px로 줄임 */
+        }
+
+        .loader-text {
+            display: flex;
+            align-items: center;
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 28px;
+            color: #2c3e50;
+            font-weight: 500;
+            gap: 8px;
+            margin-bottom: 2px;
+            /* 추가로 텍스트와 로딩바 사이 간격 미세 조정 */
+        }
+
+        .loading-dots {
+            display: flex;
+        }
+
+        .dot {
+            opacity: 0;
+            animation: dotFade 1.8s infinite;
+            font-size: 28px;
+            color: #2c3e50;
+        }
+
+        .dot:nth-child(2) {
+            animation-delay: 0.6s;
+        }
+
+        .dot:nth-child(3) {
+            animation-delay: 1.2s;
+        }
+
+        .loading-text-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin-top: -15px;
+        }
+
+        .loader-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .progress-bar {
+            width: 340px;
+            height: 50px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+
+        }
+
+        .progress {
+            width: 0%;
+            height: 100%;
+            border-radius: 4px;
+            position: absolute;
+            animation: progressAnimation 4.3s linear forwards;
+            z-index: 1;
+        }
+
+        .progress-text {
+            margin-left: 35px;
+            position: relative;
+            z-index: 2;
+            color: #2c3e50;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 35px;
+        }
+
+        .loading-dots {
+            display: flex;
+        }
+
+        .dot {
+            margin-top: 10px;
+            opacity: 0;
+            animation: dotFade 1.8s infinite;
+            font-size: 28px;
+            color: #2c3e50;
+        }
+
+        .dot:nth-child(2) {
+            animation-delay: 0.6s;
+        }
+
+        .dot:nth-child(3) {
+            animation-delay: 1.2s;
+        }
+
+        .animated-gradient {
+            background: linear-gradient(270deg,
+                    #4169E1,
+                    #FF6B6B,
+                    #4ECDC4,
+                    #45B7D1,
+                    #96C93D);
+            background-size: 500% 100%;
+            animation:
+                progressAnimation 4.3s linear forwards,
+                gradientAnimation 3s ease infinite;
+        }
+
+        @keyframes dotFade {
+
+            0%,
+            100% {
+                opacity: 0;
+            }
+
+            50% {
+                opacity: 1;
+            }
+        }
+
+        @keyframes progressAnimation {
+            0% {
+                width: 0%;
+            }
+
+            100% {
+                width: 100%;
+            }
+        }
+
+        @keyframes gradientAnimation {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        /* 로딩 화면 애니메이션 */
+        @keyframes pulseRing {
+            0% {
+                transform: scale(0.8);
+                opacity: 0.8;
+            }
+
+            50% {
+                transform: scale(1.1);
+                opacity: 0.4;
+            }
+
+            100% {
+                transform: scale(0.8);
+                opacity: 0.8;
+            }
+        }
+
+        @keyframes floatUp {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-8px);
+            }
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -200% center;
+            }
+
+            100% {
+                background-position: 200% center;
+            }
+        }
+
+        @keyframes barLoad {
+            0% {
+                width: 0%;
+            }
+
+            60% {
+                width: 75%;
+            }
+
+            80% {
+                width: 88%;
+            }
+
+            100% {
+                width: 95%;
+            }
+        }
+
+        @keyframes dotBounce {
+
+            0%,
+            80%,
+            100% {
+                transform: scale(0);
+                opacity: 0.3;
+            }
+
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+    </style>
+    <title>인터넷 속도 측정</title>
+</head>
+
+<body
+    onload="setLoadingProgress(10);setTimeout(initServers,1200);setTimeout(updateConnectionInfo,600);setTimeout(autoRun, 1900);">
+
+    <div class="side-ad" id="centerLoading" style="
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            width: 100%; height: 100%;
+            display: -webkit-flex; display: flex;
+            -webkit-justify-content: center; justify-content: center;
+            -webkit-align-items: center; align-items: center;
+            background: #FFFFFF;
+            z-index: 9999;
+        ">
+        <div style="
+            text-align: center;
+            background: rgba(255,255,255,0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 48px 56px;
+            border-radius: 28px;
+            box-shadow: 0 20px 60px rgba(80,80,200,0.18), 0 2px 8px rgba(0,0,0,0.08);
+            border: 1px solid rgba(255,255,255,0.95);
+            max-width: 340px;
+            animation: floatUp 3s ease-in-out infinite;
+        ">
+            <!-- 속도계 아이콘 영역 -->
+            <div style="position: relative; width: 100px; height: 100px; margin: 0 auto 28px auto;">
+                <!-- 외부 펄스 링 -->
+                <div style="
+                    position: absolute; top: -14px; left: -14px; right: -14px; bottom: -14px;
+                    border-radius: 50%;
+                    border: 3px solid rgba(96,96,200,0.25);
+                    animation: pulseRing 2s ease-in-out infinite;
+                "></div>
+                <!-- 스피너 -->
+                <div style="
+                    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+                    border: 5px solid rgba(230,230,255,0.6);
+                    border-top: 5px solid #6060cc;
+                    border-right: 5px solid #9060cc;
+                    border-radius: 50%;
+                    animation: spin 0.9s cubic-bezier(0.4,0,0.2,1) infinite;
+                "></div>
+                <!-- 내부 원 -->
+                <div style="
+                    position: absolute; top: 18px; left: 18px; right: 18px; bottom: 18px;
+                    border-radius: 50%;
+                    background: linear-gradient(135deg, #7c6fe0, #5b8def);
+                    box-shadow: 0 4px 16px rgba(96,96,200,0.4);
+                    display: -webkit-flex; display: flex;
+                    -webkit-align-items: center; align-items: center;
+                    -webkit-justify-content: center; justify-content: center;
+                ">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                        <path
+                            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"
+                            fill="white" opacity="0.3" />
+                        <path d="M13 7h-2v6l5.25 3.15.75-1.23-4-2.42V7z" fill="white" />
+                    </svg>
+                </div>
+            </div>
+
+            <!-- 제목 -->
+            <div style="
+                font-size: 20px;
+                font-weight: 800;
+                background: linear-gradient(135deg, #5a4fcf, #3b82f6);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+                margin-bottom: 6px;
+                letter-spacing: -0.3px;
+                font-family: 'Noto Sans KR', sans-serif;
+            ">인터넷 속도 측정</div>
+
+            <div style="
+                font-size: 13px;
+                color: #888;
+                margin-bottom: 24px;
+                font-family: 'Noto Sans KR', sans-serif;
+            ">인터넷 속도 측정 준비중...</div>
+
+            <!-- 진행 바 -->
+            <div style="
+                width: 100%;
+                height: 5px;
+                background: rgba(200,200,240,0.4);
+                border-radius: 10px;
+                overflow: hidden;
+                margin-bottom: 18px;
+            ">
+                <div id="loadingBar" style="
+                    width: 0%;
+                    height: 100%;
+                    border-radius: 10px;
+                    background: linear-gradient(90deg, #6060cc, #9060cc, #3b82f6, #6060cc);
+                    background-size: 200% auto;
+                    transition: width 0.8s ease;
+                    animation: shimmer 2s linear infinite;
+                "></div>
+            </div>
+
+            <!-- 점 애니메이션 -->
+            <div style="display: flex; justify-content: center; gap: 8px;">
+                <div
+                    style="width:8px;height:8px;border-radius:50%;background:#6060cc;animation:dotBounce 1.4s ease-in-out infinite;animation-delay:0s;">
+                </div>
+                <div
+                    style="width:8px;height:8px;border-radius:50%;background:#9060cc;animation:dotBounce 1.4s ease-in-out infinite;animation-delay:0.2s;">
+                </div>
+                <div
+                    style="width:8px;height:8px;border-radius:50%;background:#3b82f6;animation:dotBounce 1.4s ease-in-out infinite;animation-delay:0.4s;">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+
+    <!-- Add this script to remove the loading animation -->
+    <script>
+        // Hide the center loading after the page loads or after a specific time
+        window.addEventListener('load', function () {
+            setTimeout(function () {
+                var centerLoading = document.getElementById('centerLoading');
+                if (centerLoading) {
+                    centerLoading.style.opacity = '0';
+                    centerLoading.style.transition = 'opacity 0.5s ease';
+                    setTimeout(function () {
+                        centerLoading.style.display = 'none';
+                    }, 500);
+                }
+            }, 60000);  // Hide after 4 seconds (adjust as needed)
+        });
+
+        // Fallback - hide the loader after 15 seconds regardless
+        setTimeout(function () {
+            var centerLoading = document.getElementById('centerLoading');
+            if (centerLoading) {
+                centerLoading.style.display = 'none';
+            }
+        }, 15000);
+    </script>
+
+
+    <script>
+        setTimeout(function () {
+            window.scrollTo({
+                top: 1,
+                behavior: 'smooth'
+            });
+        }, 300);
+    </script>
+
+    <script>
+
+
+        function toggleAds(show) {
+            setTimeout(function () {
+                const sideAdElements = document.getElementsByClassName('side-ad');
+                for (let i = 0; i < sideAdElements.length; i++) {
+                    sideAdElements[i].style.display = 'none';
+                }
+                const sideAds = document.getElementsByClassName('side-ad');
+                for (let ad of sideAds) {
+                    if (!show) {
+                        // 광고 요소 자체를 제거
+                        ad.innerHTML = '';
+                        ad.style.display = 'none';
+                    } else {
+                        // 광고 다시 로드
+                        ad.style.display = 'block';
+                        // 광고 재생성 코드
+                        const ins = document.createElement('ins');
+                        ins.className = 'kakao_ad_area';
+                        ins.style.display = 'none';
+                        ins.setAttribute('data-ad-unit', 'DAN-KLMLj0RmJ1JHGBBx');
+                        ins.setAttribute('data-ad-width', '320');
+                        ins.setAttribute('data-ad-height', '100');
+                        ad.appendChild(ins);
+
+                        // 카카오 광고 스크립트 재로드
+                        const script = document.createElement('script');
+                        script.src = '//t1.daumcdn.net/kas/static/ba.min.js';
+                        script.async = true;
+                        ad.appendChild(script);
+                    }
+                }
+            }, 1000); // 0.1초 후에 실행
+        }
+
+        function toggleAds3(show) {
+            setTimeout(function () {
+                const sideAdElements = document.getElementsByClassName('side-ad3');
+                for (let i = 0; i < sideAdElements.length; i++) {
+                    sideAdElements[i].style.display = 'none';
+                }
+                const sideAds = document.getElementsByClassName('side-ad3');
+                for (let ad of sideAds) {
+                    if (!show) {
+                        // 광고 요소 자체를 제거
+                        ad.innerHTML = '';
+                        ad.style.display = 'none';
+                    } else {
+                        // 광고 다시 로드
+                        ad.style.display = 'block';
+                        // 광고 재생성 코드
+                        const ins = document.createElement('ins');
+                        ins.className = 'kakao_ad_area';
+                        ins.style.display = 'none';
+                        ins.setAttribute('data-ad-unit', 'DAN-KLMLj0RmJ1JHGBBx');
+                        ins.setAttribute('data-ad-width', '320');
+                        ins.setAttribute('data-ad-height', '100');
+                        ad.appendChild(ins);
+
+                        // 카카오 광고 스크립트 재로드
+                        const script = document.createElement('script');
+                        script.src = '//t1.daumcdn.net/kas/static/ba.min.js';
+                        script.async = true;
+                        ad.appendChild(script);
+                    }
+                }
+            }, 1000); // 0.1초 후에 실행
+        }
+    </script>
+
+    <div class="side-ad" style="margin-bottom: 0px;">
+        <a href="javascript:void(0);" onclick="(function(){const params = new URLSearchParams(window.location.search); const hddid = params.has('hddid') ? params.get('hddid') : ''; const hdid = params.has('hdid') ? params.get('hdid') : ''; window.location.href = './ins6.   
+            html?hddid=' + hddid + '&hdid=' + hdid;})();"
+            style="text-decoration: none; color: inherit; cursor: pointer; display: block;">
+            <div class="loading-text-container">
+                <div class="loader-content">
+                    <div class="progress-bar">
+                        <div class="progress animated-gradient"></div>
+                        <div class="progress-text">
+                            <span>속도 측정 로딩 중</span>
+                            <div class="loading-dots">
+                                <span class="dot">.</span>
+                                <span class="dot">.</span>
+                                <span class="dot">.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <div class="side-ad" style="margin-top: 1.9%;transform: translateX(0%);">
+        <br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br><br>
+    </div>
+
+    <!--
+    <img id="niaLogo" src="/NIA.PNG" alt="NIA" onclick="location.reload();" style="width: 12%; cursor: pointer;" />
+    -->
+    <script>
+        function transferParams(event) {
+            event.preventDefault();
+            const params = new URLSearchParams(window.location.search);
+            const hddid = params.get('hddid') || '';
+            const hdid = params.get('hdid') || '';
+            window.location.href = './22a6.html?hddid=' + hddid + '&hdid=' + hdid;
+        }
+    </script>
+    <button id="toggleHistoryBtn" onclick="toggleHistory()">기록표 열기</button>
+
+    <div id="loading" class="visible">
+        <p id="message"><span class="loadCircle"></span>Selecting a server...</p>
+    </div>
+
+    <div id="testWrapper" class="hidden">
+        <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 8px; margin-top: 24px;">
+            <a href="./222.html" onclick="transferParams(event)">
+                <img id="niaLogo" src="./NIA.PNG" alt="NIA" style="width: 70%; cursor: pointer;" />
+            </a>
+            <div id="splitBtn" style="margin-bottom: 8px;">
+                <div id="startStopBtn" onclick="startStop2()">
+                    <span id="startStopLabel">시작</span>
+                </div>
+                <select id="repeatCount" title="측정 횟수">
+                    <option value="1">1회</option>
+                    <option value="2">2회</option>
+                    <option value="3" selected>3회</option>
+                    <option value="4">4회</option>
+                    <option value="5">5회</option>
+                </select>
+            </div>
+            <div id="runProgress"></div>
+        </div>
+        <a class="privacy" id="pria" href="#" onclick="I('privacyPolicy').style.display=''">Privacy</a>
+
+        <div id="serverArea">
+            Server: <select id="server" onchange="s.setSelectedServer(SPEEDTEST_SERVERS[this.value])"></select>
+        </div>
+
+        <div id="test">
+            <div class="testGroup">
+                <div class="testArea2">
+                    <div class="testName"
+                        style="display: flex; justify-content: center; align-items: center; gap: 5px;">
+                        지연시간
+                        <div class="tooltip" style="margin-left: -1px;top: -1px;">
+                            <img src="./qu.png" alt="?" style="width: 25px; height: 25px; vertical-align: middle;">
+                            <span class="tooltiptext">
+                                <span style="font-size: 12px; font-weight: bold;">지연시간 (Ping)</span><br>
+                                <span style="font-size: 10px;">인터넷 신호가 내 기기에서 서버까지 갔다가 돌아오는 데 걸리는 시간을 말합니다. 숫자가 작을수록 인터넷
+                                    반응 속도가 빠르다는 뜻입니다. 게임이나 화상통화에서 중요합니다.<br><br><span style="font-weight:bold;">권장 수치 :
+                                        30ms 이하 (100ms 이상이면 인터넷의 느림이
+                                        감지됨)</span></span>
+                            </span>
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: center; align-items: baseline; gap: 4px;">
+                        <div id="pingText" class="meterText" style="color:#AA6060; margin: 0;"></div>
+                        <div class="unit" style="margin-top: 0;">
+                            <img src="./ms.PNG" alt="msec" class="msec-image" style="height: 20px;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="testArea2">
+                    <div class="testName"
+                        style="display: flex; justify-content: center; align-items: center; gap: 5px;">
+                        지연편차
+                        <div class="tooltip" style="margin-left: -1px;top: -1px;">
+                            <img src="./qu.png" alt="?" style="width: 25px; height: 25px; vertical-align: middle;">
+                            <span class="tooltiptext">
+                                <span style="font-size: 12px; font-weight: bold;">지연편차 (Jitter)</span><br>
+                                <span style="font-size: 10px;">지연편차는 지연 시간 변화량을 의미하며 데이터가 얼마나 일정하게 도착하는지를 나타냅니다. 값이 클수록
+                                    인터넷 연결이 불안정할 수 있다는 의미이며, 화상통화나 동영상 시청 중 끊김이 생길 가능성이 있습니다.<br><br><span
+                                        style="font-weight:bold;">권장 수치: 30ms 이하
+                                        (20ms 이하는 매우 안정적)</span></span>
+                            </span>
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: center; align-items: baseline; gap: 4px;">
+                        <div id="jitText" class="meterText" style="color:#AA6060; margin: 0;"></div>
+                        <div class="unit" style="margin-top: 0;">
+                            <img src="./ms.PNG" alt="msec" class="msec-image" style="height: 20px;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="testArea2">
+                    <div class="testName"
+                        style="display: flex; justify-content: center; align-items: center; gap: 5px;">
+                        손실률
+                        <div class="tooltip" style="margin-left: -1px;top: -1px;">
+                            <img src="./qu.png" alt="?" style="width: 25px; height: 25px; vertical-align: middle;">
+                            <span class="tooltiptext">
+                                <span style="font-size: 12px; font-weight: bold;">손실률 (Loss Rate)</span><br>
+                                <span style="font-size: 10px;">손실률은 인터넷 데이터가 전송 중에 유실되는 비율입니다.<br>
+                                    값이 0%에 가까울수록 품질이 좋으며,<br>
+                                    1% 이상이면 영상통화, 게임 등에서 끊김이 자주 발생할 수 있습니다.<br>
+                                    실시간 서비스 품질에 직접적인 영향을 주는 지표입니다.<br>
+                                    <span style="font-weight:bold;">권장 수치: 0%</span></span>
+                            </span>
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: center; align-items: baseline; gap: 4px;">
+                        <div id="highPingPercent" style="color:#AA6060; margin: 0;"></div>
+                        <div class="unit" style="margin-top: 0;">%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="testGroup">
+            <div class="testArea">
+                <div class="testName" style="display: flex; justify-content: center; align-items: center; gap: 5px;">
+                    다운로드
+                    <div class="tooltip" style="margin-left: -1px;top: -1px;">
+                        <img src="./qu.png" alt="?"
+                            style="width: 25px; height: 25px; vertical-align: middle;margin-top: -3px; ">
+                        <span class="tooltiptext">
+                            <span style="font-size: 12px; font-weight: bold;">다운로드 속도</span><br>
+                            <span style="font-size: 10px;">인터넷에서 내 기기로 데이터를 받는 속도를 말합니다. 다운로드 속도가 빠를수록 파일, 동영상 등을 더 빠르게
+                                받을 수 있습니다. 여러번 측정해도 일정한 값이 나와야 안정적으로 이용 가능합니다.<br><span style="font-weight:bold;">권장 수치:
+                                    사용하는 요금제, 공유기의 성능, 환경에 따라 다르게
+                                    측정되지만 최대 수치의 80% 이상을 권장하고 있습니다.</span><br>ex) 유선 : 100메가 상품 = 80Mbps 이상<br> 500메가 상품
+                                = 400mbps
+                                이상</span>
+                        </span>
+                    </div>
+                </div>
+                <canvas id="dlMeter" class="meter"></canvas>
+                <div id="dlText" class="meterText"></div>
+                <div class="unit">Mbps</div>
+                <div class="speedJitter">편차: <span id="dlJitterText">-</span> Mbps</div>
+            </div>
+
+            <div class="testArea">
+                <div class="testName" style="display: flex; justify-content: center; align-items: center; gap: 5px;">
+                    업로드
+                    <div class="tooltip" style="margin-left: -1px;top: -1px;">
+                        <img src="./qu.png" alt="?"
+                            style="width: 25px; height: 25px; margin-top: -5px; vertical-align: middle;">
+                        <span class="tooltiptext">
+                            <span style="font-size: 12px; font-weight: bold;">업로드 속도</span><br>
+                            <span style="font-size: 10px;">내 기기에서 인터넷으로 데이터를 보내는 속도를 말합니다. 업로드 속도가 낮으면 파일 전송, 화상 통화, 실시간
+                                데이터 전송이 필요한 경우 이상이 생길 수 있습니다. 여러번 측정해도 일정한 값이 나와야 안정적으로 이용 가능합니다.<br><span
+                                    style="font-weight:bold;">권장 수치: 다운로드 속도와 권장
+                                    수치와 동일하게 최대 수치의 80%를 권장합니다.</span><br>ex) 유선 : 100메가 상품 = 80Mbps 이상<br> 500메가 상품 =
+                                400mbps
+                                이상</span>
+                        </span>
+                    </div>
+                </div>
+                <canvas id="ulMeter" class="meter"></canvas>
+                <div id="ulText" class="meterText"></div>
+                <div class="unit">Mbps</div>
+                <div class="speedJitter">편차: <span id="ulJitterText">-</span> Mbps</div>
+            </div>
+        </div>
+
+        <div id="ipArea">
+            <span id="ips"></span>
+            <span id="ips"><span class="highlight"></span></span>
+        </div>
+
+        <div id="connectionInfo" style="font-size: 12px;">
+            <div id="ip2">
+                <span class="infoLabel2">IP Address</span>
+                <span id="ip"></span>
+            </div>
+            <div>
+                <span class="infoLabel">통신 업체</span>
+                <span id="isp"></span>
+            </div>
+            <div>
+                <span class="infoLabel">접속 서버</span>
+                <span id="location"></span>
+            </div>
+            <div>
+                <span class="infoLabel">측정 서버</span>
+                <span>Geumcheon-gu, Seoul, South Korea / Powered by LJH</span>
+            </div>
+        </div>
+
+        <div id="shareArea" style="display:none">
+            <h3>Share results</h3>
+            <p>Test ID: <span id="testId"></span></p>
+            <input type="text" value="" id="resultsURL" readonly="readonly"
+                onclick="this.select();this.focus();this.select();document.execCommand('copy');alert('Link copied')" />
+            <img src="" id="resultsImg" />
+        </div>
+    </div>
+
+    <div id="testHistory">
+        <table id="historyTable">
+            <thead>
+                <tr>
+                    <th width="140px" style="margin-top: -10px;">
+                        <button id="clearLocalStorageBtn" onclick="showPreviousRecords()">전체 기록</button>
+                        <button id="clearLocalStorageBtn" onclick="generateCurrentTestReport()">분석</button>
+                    </th>
+                    <th onclick="generateCurrentTestReport2()" style="cursor: pointer;">지연<br>(ms)</th>
+                    <th>편차<br>(ms)</th>
+                    <th>손실<br>(%)</th>
+                    <th>다운<br>(Mbps)</th>
+                    <th>업<br>(Mbps)</th>
+                    <th>업/다운<br>(%)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- JavaScript will populate this -->
+            </tbody>
+        </table>
+    </div>
+
+    <br>
+
+    <div id="previousHistory">
+        <div class="historyButtons">
+            <!--
+            <button id="clearLocalStorageBtn" onclick="generateSpeedReport()">전체 분석</button>
+            -->
+            <button id="clearLocalStorageBtn" onclick="window.open('./pingtest.php', '_blank')">핑 태스트</button>
+            <button id="clearLocalStorageBtn" onclick="clearLocalStorage()">기록 비우기</button>
+            <button id="clearLocalStorageBtn" onclick="hidePreviousRecords()">닫기</button>
+        </div>
+        <h3>지난 측정 기록</h3>
+        <table id="previousHistoryTable">
+            <thead>
+                <tr>
+                    <th width="140px">시간</th>
+                    <th>지연<br>(ms)</th>
+                    <th>편차<br>(ms)</th>
+                    <th>손실<br>(%)</th>
+                    <th>다운<br>(Mbps)</th>
+                    <th>업<br>(Mbps)</th>
+                    <th>업/다운<br>(%)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- JavaScript will populate this -->
+            </tbody>
+        </table>
+    </div>
+
+    <style>
+        @media screen and (max-width: 820px) {
+            .side-ad {}
+        }
+
+        @media screen and (max-width: 820px) {
+            .side-ad2 {
+                display: none !important;
+            }
+        }
+
+        @media screen and (max-width: 820px) {
+            .side-ad3 {
+                display: none !important;
+            }
+        }
+
+        @media screen and (max-width: 1300px) {
+            .side-ad2 {
+                display: none !important;
+            }
+        }
+
+        @media screen and (min-width: 1301px) and (max-width: 1500px) {
+            .side-ad2 {
+                top: 15% !important;
+            }
+        }
+
+        @media screen and (min-width: 1501px) {
+            .side-ad2 {
+                top: 15% !important;
+            }
+        }
+    </style>
+
+
+    <br><br>
+
+    <br><br>
+
+    <div style="
+position: fixed;
+bottom: 0;
+left: 0;
+width: 100%;
+background-color: #f8f9fa;
+padding: 8px;
+text-align: center;
+border-top: 1px solid #dee2e6;
+font-size: 10px;
+color: #6c757d;
+z-index: 1000;
+">
+        Created by 이정환 | 광고 및 기술 문의 Email: ljh20341@gmail.com
+    </div>
+
+    <style>
+        .info-cards-wrapper {
+            border: 2px solid #bfc4d1;
+            border-radius: 16px;
+            padding: 24px 18px 18px 18px;
+            margin: 32px auto 28px auto;
+            max-width: 1100px;
+            background: #fafdff;
+            box-shadow: 0 2px 12px #0001;
+        }
+
+        .info-cards-row {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 16px;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+
+        .info-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px #0001;
+            padding: 18px 20px;
+            min-width: 180px;
+            max-width: 320px;
+            flex: 1 1 0;
+            border: 1.5px solid #e0e4ef;
+        }
+
+        .info-title {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .info-desc {
+            font-size: 0.98em;
+            color: #444;
+            line-height: 1.6;
+        }
+
+        /* 아래 2개는 꽉 차게, gap 추가 */
+        .info-cards-row.bottom {
+            gap: 16px;
+        }
+
+        .info-cards-row.bottom .info-card {
+            min-width: 0;
+            max-width: none;
+            flex: 1 1 50%;
+        }
+    </style>
+
+
+
+</body>
+
+</html>

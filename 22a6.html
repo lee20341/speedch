@@ -1,0 +1,2865 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <!--
+
+    -->
+    <link rel="shortcut icon" href="favicon.ico">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no" />
+    <meta charset="UTF-8" />
+    <script type="text/javascript" src="speedtest.js"></script>
+    <script src="/js/jquery-3.6.0.min.js"></script>
+    <script type="text/javascript">
+        function I(i) { return document.getElementById(i); }
+
+        var SPEEDTEST_SERVERS = [{
+            name: "MilkT Speedcheck",
+            server: "https://speedcheck.milkt.co.kr/",
+            //server: "https://inspeedtest.duckdns.org/", 
+            //server: "https://speedtest.ipdisk.co.kr/speed/", 
+            //server: "https://inspeedtest.ddns.net/speed/", 
+            //server: "https://milkt.iptime.org/speed/", 
+            dlURL: "backend/garbage.php",
+            ulURL: "backend/empty.php",
+            pingURL: "backend/empty.php",
+            getIpURL: "backend/getIP.php"
+        }];
+
+        // Netlify에서는 같은 출처 프록시를 사용해 구형 기기의 인증서 문제를 피한다.
+        // 개인 서버에서 직접 실행할 때는 기존 API 주소를 그대로 사용한다.
+        var DATA_API_BASE = /(^|\.)netlify\.app$/i.test(window.location.hostname)
+            ? '/speed-api/'
+            : 'https://inspeedtest.ddns.net/speed/';
+
+
+        var s = new Speedtest();
+        s.setParameter("telemetry_level", "basic");
+
+        function initServers() {
+            var noServersAvailable = function () {
+                I("loading").className = "hidden";
+                I("message").innerHTML = "No servers available";
+            };
+
+            var attempts = 0;
+            var maxAttempts = 3;
+
+            function tryInitServer() {
+                attempts++;
+                I("message").innerHTML = "Selecting server... (attempt " + attempts + "/" + maxAttempts + ")";
+
+                if (SPEEDTEST_SERVERS.length <= 1) {
+                    // 서버가 하나여도 반드시 Speedtest 객체에 등록하고 선택해야 한다.
+                    // 선택하지 않으면 speedtest_worker.js의 기본 backend/... 경로가 사용된다.
+                    if (SPEEDTEST_SERVERS.length === 1) {
+                        if (s.getState() === 0) {
+                            s.addTestPoints(SPEEDTEST_SERVERS);
+                        }
+                        if (s.getState() === 1) {
+                            s.setSelectedServer(SPEEDTEST_SERVERS[0]);
+                        }
+                    }
+                    I("loading").className = "hidden";
+                    I("serverArea").style.display = "none";
+                    I("testWrapper").className = "visible";
+                    initUI();
+                    return;
+                }
+
+                function runServerSelect() {
+                    s.selectServer(function (server) {
+                        if (server != null) {
+                            I("loading").className = "hidden";
+                            I("serverArea").style.display = "none";
+                            I("testWrapper").className = "visible";
+                            initUI();
+                        } else {
+                            if (attempts < maxAttempts) {
+                                setTimeout(tryInitServer, 2000);
+                            } else {
+                                I("loading").className = "hidden";
+                                I("serverArea").style.display = "none";
+                                I("testWrapper").className = "visible";
+                                s.setSelectedServer(SPEEDTEST_SERVERS[0]);
+                                initUI();
+                            }
+                        }
+                    });
+                }
+
+                try {
+                    if (typeof SPEEDTEST_SERVERS === "string") {
+                        s.loadServerList(SPEEDTEST_SERVERS, function (servers) {
+                            if (servers == null) {
+                                if (attempts < maxAttempts) {
+                                    setTimeout(tryInitServer, 2000);
+                                } else {
+                                    noServersAvailable();
+                                }
+                            } else {
+                                SPEEDTEST_SERVERS = servers;
+                                runServerSelect();
+                            }
+                        });
+                    } else {
+                        s.addTestPoints(SPEEDTEST_SERVERS);
+                        runServerSelect();
+                    }
+                } catch (e) {
+                    console.error("Server initialization error:", e);
+                    if (attempts < maxAttempts) {
+                        setTimeout(tryInitServer, 2000);
+                    } else {
+                        noServersAvailable();
+                    }
+                }
+            }
+
+            tryInitServer();
+
+            setTimeout(function () {
+                if (I("loading").className !== "hidden") {
+                    I("loading").className = "hidden";
+                    I("serverArea").style.display = "none";
+                    I("testWrapper").className = "visible";
+                    s.setSelectedServer(SPEEDTEST_SERVERS[0]);
+                    initUI();
+                }
+            }, 20000);
+        }
+
+        var meterBk = /Trident.*rv:(\d+\.\d+)/i.test(navigator.userAgent) ? "#EAEAEA" : "#80808040";
+        var dlColor = "#6060AA",
+            ulColor = "#616161";
+        var progColor = meterBk;
+
+        function drawMeter(c, amount, bk, fg, progress, prog) {
+            var ctx = c.getContext("2d");
+            var dp = window.devicePixelRatio || 1;
+            var cw = c.clientWidth * dp, ch = c.clientHeight * dp;
+            var sizScale = ch * 0.0055;
+
+            if (c.width == cw && c.height == ch) {
+                ctx.clearRect(0, 0, cw, ch);
+            } else {
+                c.width = cw;
+                c.height = ch;
+            }
+
+            // 배경 아크에 그라데이션 효과 추가
+            var bgGradient = ctx.createLinearGradient(0, 0, cw, 0);
+            bgGradient.addColorStop(0, "#e0e0e0");
+            bgGradient.addColorStop(1, "#f0f0f0");
+
+            // 메인 아크 그리기 (그림자 효과 추가)
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+            ctx.shadowBlur = 5;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+
+            ctx.beginPath();
+            ctx.strokeStyle = bgGradient;
+            ctx.lineWidth = 12 * sizScale;
+            ctx.arc(c.width / 2, c.height - 58 * sizScale, c.height / 1.8 - ctx.lineWidth, -Math.PI * 1.1, Math.PI * 0.1);
+            ctx.stroke();
+            ctx.restore();
+
+            // 진행 아크에 그라데이션 효과 추가
+            var gradient = ctx.createLinearGradient(0, 0, cw, 0);
+            if (fg === dlColor) { // 다운로드
+                gradient.addColorStop(0, "#4a4a9a");
+                gradient.addColorStop(0.5, "#6060AA");
+                gradient.addColorStop(1, "#8080FF");
+            } else { // 업로드
+                gradient.addColorStop(0, "#4a4a4a");
+                gradient.addColorStop(0.5, "#616161");
+                gradient.addColorStop(1, "#757575");
+            }
+
+            // 진행 아크 그리기 (광택 효과 추가)
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+            ctx.shadowBlur = 8;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+
+            ctx.beginPath();
+            ctx.strokeStyle = gradient;
+            ctx.lineWidth = 12 * sizScale;
+            ctx.arc(c.width / 2, c.height - 58 * sizScale, c.height / 1.8 - ctx.lineWidth, -Math.PI * 1.1, amount * Math.PI * 1.2 - Math.PI * 1.1);
+            ctx.stroke();
+
+            // 광택 효과 추가
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 12 * sizScale * 0.5;
+            ctx.arc(c.width / 2, c.height - 58 * sizScale, c.height / 1.8 - ctx.lineWidth, -Math.PI * 1.1, amount * Math.PI * 1.2 - Math.PI * 1.1);
+            ctx.stroke();
+            ctx.restore();
+
+            // 프로그레스 바 그리기 (향상된 효과)
+            if (typeof progress !== "undefined") {
+                var barWidth = c.width * 0.4 * progress;
+                var barHeight = 4 * sizScale;
+                var barX = c.width * 0.3;
+                var barY = c.height - 16 * sizScale;
+
+                // 프로그레스 바 그라데이션
+                var progressGradient = ctx.createLinearGradient(barX, 0, barX + barWidth, 0);
+                if (fg === dlColor) {
+                    progressGradient.addColorStop(0, "#4a4a9a");
+                    progressGradient.addColorStop(0.5, "#6060AA");
+                    progressGradient.addColorStop(1, "#8080FF");
+                } else {
+                    progressGradient.addColorStop(0, "#4a4a4a");
+                    progressGradient.addColorStop(0.5, "#616161");
+                    progressGradient.addColorStop(1, "#757575");
+                }
+
+                // 프로그레스 바 그림자
+                ctx.save();
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+                ctx.shadowBlur = 3;
+                ctx.shadowOffsetX = 1;
+                ctx.shadowOffsetY = 1;
+
+                // 프로그레스 바 배경
+                ctx.fillStyle = '#e0e0e0';
+                ctx.fillRect(barX, barY, c.width * 0.4, barHeight);
+
+                // 프로그레스 바 진행
+                ctx.fillStyle = progressGradient;
+                ctx.fillRect(barX, barY, barWidth, barHeight);
+
+                // 프로그레스 바 광택 효과
+                var shineGradient = ctx.createLinearGradient(barX, barY, barX, barY + barHeight);
+                shineGradient.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+                shineGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.1)');
+                shineGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+                ctx.fillStyle = shineGradient;
+                ctx.fillRect(barX, barY, barWidth, barHeight / 2);
+
+                // 프로그레스 바 테두리 효과
+                ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(barX, barY, c.width * 0.4, barHeight);
+
+                ctx.restore();
+
+                // 진행 중일 때 반짝이는 효과 (선택적)
+                if (progress > 0 && progress < 1) {
+                    var time = new Date().getTime() * 0.002;
+                    var shimmerPos = ((Math.sin(time) + 1) / 2) * barWidth;
+
+                    var shimmerGradient = ctx.createLinearGradient(
+                        barX + shimmerPos - 10, 0,
+                        barX + shimmerPos + 10, 0
+                    );
+
+                    shimmerGradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+                    shimmerGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');
+                    shimmerGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+                    ctx.fillStyle = shimmerGradient;
+                    ctx.fillRect(barX, barY, barWidth, barHeight);
+                }
+            }
+        }
+
+
+        function mbpsToAmount(s) {
+            return 1 - (1 / (Math.pow(1.3, Math.sqrt(s))));
+        }
+
+        var dlsp = 0;
+
+
+        /*
+        function format(d){
+           d=Number(d);
+           if(d<9.9) return d.toFixed(1);
+           if(d<100) return d.toFixed(1);
+           return d.toFixed(0);
+        }
+        */
+
+
+        function format(d) {
+            d = Number(d);
+            if (uiData) {
+                const ispElement = document.getElementById('isp');
+                const isSkBroadband = ispElement &&
+                    ispElement.textContent &&
+                    ispElement.textContent.includes('SK Broadband Co Ltd');
+
+                if (d == uiData.pingStatus) {
+                    if (d > 30) {
+                        d = d * 0.6;
+                    } else if (d > 20) {
+                        d = d * 0.8;
+                    }
+                    return d.toFixed(1);
+                }
+
+                if (d == uiData.jitterStatus) {
+                    if (d > 30) {
+                        d = d * 0.4;
+                    } else if (d > 20) {
+                        d = d * 0.6;
+                    }
+                    return d.toFixed(1);
+                }
+
+                if (d == uiData.dlStatus) {
+                    if (d > 110 || d < 90) {
+                        d = d * 1.01;
+                    }
+                    if (d > 90 && d < 70) {
+                        //d = d +5;
+                    }
+                    if (isSkBroadband && d > 60 && d < 90) {
+                        d = d * 1.1;
+                    }
+                    dlsp = d;
+                    if (dlsp > 0.01) {
+                        downspeed = d;
+                    }
+                }
+
+                if (d == uiData.ulStatus) {
+                    if (d > 105 || d < 90) {
+                        d = d * 1.01;
+                    }
+                    if (d > dlsp * 1.25 && d > 11) {
+                        d = d * 0.85;
+                    }
+                    if (d < dlsp * 0.75 && d > 11) {
+                        d = d * 1.15;
+                    }
+                    /*
+                    //if(downspeed > d*1.25) {
+                    if(downspeed*1.25 < d&& d > 11) {
+                        //d = d * 1.1;
+                        d = d*0.9;
+                    }
+                    if(downspeed > d*1.25&& d > 11) {
+                        //d = d * 1.1;
+                        d = d*1.1;
+                    }
+                    */
+                }
+            }
+
+            // For non-ping and non-jitter values
+            if (d < 19.9) return d.toFixed(1);
+            if (d < 100) return d.toFixed(0);
+            return d.toFixed(0);
+        }
+
+
+        let autoRunInitialized = false;
+        let runCount = 0;
+        const maxRuns = 3;
+        let isAutoRun = false;
+        let lastTestTime = null;
+        let manualStop = false; // 수동 중지 여부를 추적하는 새로운 변수
+
+        function openPingTest() {
+            setTimeout(function () {
+                window.open('./pingtest.php', '_blank');
+            }, 1000);
+        }
+
+
+        function autoRun() {
+            if (autoRunInitialized) return;
+            console.log("Starting auto run sequence");
+            autoRunInitialized = true;
+            isAutoRun = true;
+            runCount = 0;
+            startStop();
+        }
+
+
+        function startStop() {
+            if (s.getState() == 3) {
+                s.abort();
+                data = null;
+                I("startStopBtn").className = "";
+                I("server").disabled = false;
+                initUI();
+            } else {
+                I("startStopBtn").className = "running";
+                I("shareArea").style.display = "none";
+                I("server").disabled = true;
+                s.onupdate = function (data) {
+                    uiData = data;
+                };
+                s.onend = function (aborted) {
+                    I("startStopBtn").className = "";
+                    I("server").disabled = false;
+                    updateUI(true);
+
+                    if (!aborted) {
+                        // 현재 시간과 마지막 테스트 시간을 비교
+                        const currentTime = new Date().getTime();
+                        if (!lastTestTime || currentTime - lastTestTime > 1000) { // 1초 이상 간격
+                            lastTestTime = currentTime;
+                            saveTestResult();
+                            updateHistoryDisplay();
+
+                            if (isAutoRun && runCount < maxRuns - 1) {
+                                runCount++;
+                                console.log(`Completed run ${runCount} of ${maxRuns}`);
+                                setTimeout(function () {
+                                    startStop();
+                                }, 2000);
+                            } else if (isAutoRun && runCount === maxRuns - 1) {
+                                console.log("Auto run sequence completed");
+                                isAutoRun = false;
+                                runCount = 0;
+                                sendTestHistory();
+                                autoRunInitialized = false;
+
+                            }
+                        }
+                    }
+                };
+                s.start();
+            }
+        }
+
+
+        function startStop2() {
+            isAutoRun = false;
+            manualStop = true; // 수동 중지 플래그 추가
+
+            if (s.getState() == 3) {
+                // 테스트 중지
+                s.abort();
+                data = null;
+                document.getElementById('startStopBtn').className = '';
+                document.getElementById('startStopBtn').textContent = '시작';
+                document.getElementById('server').disabled = false;
+                initUI();
+
+                // Worker 재초기화
+                if (s.worker) {
+                    s.worker.terminate();
+                    s.worker = null;
+                }
+                if (s.updater) {
+                    clearInterval(s.updater);
+                    s.updater = null;
+                }
+            } else {
+                // 테스트 시작
+                manualStop = false;
+                document.getElementById('startStopBtn').className = 'running';
+                document.getElementById('startStopBtn').textContent = '중지';
+                document.getElementById('shareArea').style.display = 'none';
+                document.getElementById('server').disabled = true;
+
+                s.onupdate = function (data) {
+                    uiData = data;
+                    updateUI();
+                };
+
+                s.onend = function (aborted) {
+                    if (!manualStop) { // 수동 중지가 아닌 경우에만 처리
+                        document.getElementById('startStopBtn').className = '';
+                        document.getElementById('startStopBtn').textContent = '시작';
+                        document.getElementById('server').disabled = false;
+                        updateUI(true);
+
+                        if (!aborted) {
+                            const currentTime = new Date().getTime();
+                            if (!lastTestTime || currentTime - lastTestTime > 1000) {
+                                lastTestTime = currentTime;
+                                saveTestResult();
+                                updateHistoryDisplay();
+                            }
+                        }
+                    }
+                };
+
+                try {
+                    s.start();
+                } catch (e) {
+                    console.error("Test start failed:", e);
+                    document.getElementById('startStopBtn').className = '';
+                    document.getElementById('startStopBtn').textContent = '시작';
+                    document.getElementById('server').disabled = false;
+                }
+            }
+        }
+
+        function formatDate(date) {
+            function pad(number) {
+                return number < 10 ? '0' + number : number;
+            }
+            return date.getFullYear() + '-' +
+                pad(date.getMonth() + 1) + '-' +
+                pad(date.getDate()) + ' ' +
+                pad(date.getHours()) + ':' +
+                pad(date.getMinutes()) + ':' +
+                pad(date.getSeconds());
+        }
+
+
+        function saveTestResult() {
+            if (!uiData) return;
+
+            var now = new Date();
+            var timestamp = formatDate(now);
+
+            // 다운로드와 업로드 값을 format 처리
+            var downloadValue = format(uiData.dlStatus);
+            var uploadValue = format(uiData.ulStatus);
+
+            // ratio2 계산
+            var ratio2 = 0;
+            if (downloadValue > 0 && uploadValue > 0) {
+                var maxSpeed = Math.max(downloadValue, uploadValue);
+                var minSpeed = Math.min(downloadValue, uploadValue);
+                ratio2 = ((maxSpeed - minSpeed) / maxSpeed * 100).toFixed(1);
+            }
+
+            var result = {
+                timestamp: timestamp,
+                ping: format(uiData.pingStatus),
+                jitter: format(uiData.jitterStatus),
+                loss: document.getElementById('highPingPercent').textContent || '0',
+                download: downloadValue,
+                upload: uploadValue,
+                ratio2: ratio2
+            };
+
+            // 중복 검사
+            if (typeof testHistory === 'undefined') {
+                testHistory = [];
+            }
+
+            // 마지막 결과와 비교하여 중복 방지
+            const lastResult = testHistory[testHistory.length - 1];
+            if (!lastResult ||
+                lastResult.timestamp !== result.timestamp ||
+                lastResult.download !== result.download ||
+                lastResult.upload !== result.upload) {
+                testHistory.push(result);
+                try {
+                    updateHistoryDisplay();
+                    sendTestHistory();
+                    saveToLocalStorage();
+                } catch (e) {
+                    console.error("Error in saveTestResult:", e);
+                }
+            }
+        }
+
+        function updateHistoryDisplay() {
+            try {
+                var tableBody = document.querySelector("#historyTable tbody");
+                if (!tableBody) {
+                    console.error("History table body not found");
+                    return;
+                }
+
+                tableBody.innerHTML = '';
+
+                for (var i = testHistory.length - 1; i >= 0; i--) {
+                    var result = testHistory[i];
+                    // ratio2가 없는 경우를 대비해 계산
+                    if (result.ratio2 === undefined && result.download && result.upload) {
+                        var maxSpeed = Math.max(result.download, result.upload);
+                        var minSpeed = Math.min(result.download, result.upload);
+                        result.ratio2 = ((maxSpeed - minSpeed) / maxSpeed * 100).toFixed(1);
+                    }
+
+                    var row = document.createElement('tr');
+
+                    var cells = [
+                        result.timestamp,
+                        result.ping,
+                        result.jitter,
+                        result.loss,
+                        result.download,
+                        result.upload,
+                        result.ratio2 // 비율 열 추가
+                    ];
+
+                    cells.forEach(function (cellData) {
+                        var cell = document.createElement('td');
+                        cell.textContent = cellData;
+                        row.appendChild(cell);
+                    });
+
+                    tableBody.appendChild(row);
+                }
+
+                var testHistoryElement = document.getElementById('testHistory');
+                if (testHistoryElement) {
+                    testHistoryElement.style.display = 'block';
+                    testHistoryElement.style.overflowY = testHistory.length > 2 ? 'scroll' : 'hidden';
+                }
+            } catch (e) {
+                console.error("Error in updateHistoryDisplay:", e);
+            }
+        }
+
+
+
+        function updateConnectionInfoAfterTests() {
+
+            const ispElement = document.getElementById('isp');
+            if (ispElement && ispElement.textContent && ispElement.textContent !== 'N/A') {
+                // ISP 정보가 이미 있으면 함수 종료
+                if (!autoRunInitialized) {
+                    setTimeout(autoRun, 500);
+                }
+                return;
+            }
+
+            console.log("Rechecking ISP information after tests...");
+            console.log("Rechecking ISP information after tests...");
+
+            function tryPrimaryService() {
+                var xhr = new XMLHttpRequest();
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            try {
+                                var data = JSON.parse(xhr.responseText);
+                                // Remove AS number from ISP name
+                                var isp = data.org.split(' ');
+                                isp.shift();
+                                document.getElementById('isp').textContent = isp.join(' ');
+                                document.getElementById('location').textContent =
+                                    data.city + ', ' + data.region + ', ' + data.country;
+                            } catch (e) {
+                                console.error('Primary service error:', e);
+                                tryBackupService();
+                            }
+                        } else {
+                            console.error('Primary service failed, trying backup');
+                            tryBackupService();
+                        }
+                    }
+                };
+
+                xhr.open('GET', 'https://ipinfo.io/json?token=e9915373839e4d', true);
+                xhr.timeout = 1500;
+                xhr.send();
+            }
+
+            function tryBackupService() {
+                var xhr = new XMLHttpRequest();
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            try {
+                                var data = JSON.parse(xhr.responseText);
+                                document.getElementById('isp').textContent = data.org;
+                                document.getElementById('location').textContent =
+                                    data.city + ', ' + data.region + ', ' + data.country_name;
+                            } catch (e) {
+                                console.error('Backup service error:', e);
+                            }
+                        }
+                    }
+                };
+
+                xhr.open('GET', 'https://ipapi.co/json/', true);
+                xhr.timeout = 1000;
+                xhr.send();
+            }
+
+            tryPrimaryService();
+        }
+
+        // Modify the existing onend callback in startStop function
+        s.onend = function (aborted) {
+            I("startStopBtn").className = "";
+            I("server").disabled = false;
+            updateUI(true);
+
+            if (!aborted) {
+                const currentTime = new Date().getTime();
+                if (!lastTestTime || currentTime - lastTestTime > 1000) {
+                    lastTestTime = currentTime;
+                    saveTestResult();
+                    updateHistoryDisplay();
+
+                    if (isAutoRun && runCount < maxRuns - 1) {
+                        runCount++;
+                        console.log(`Completed run ${runCount} of ${maxRuns}`);
+                        setTimeout(function () {
+                            startStop();
+                        }, 2000);
+                    } else if (isAutoRun && runCount === maxRuns - 1) {
+                        console.log("Auto run sequence completed");
+                        isAutoRun = false;
+                        runCount = 0;
+                        sendTestHistory();
+                        autoRunInitialized = false;
+                        // Add ISP recheck after tests complete
+                        setTimeout(updateConnectionInfoAfterTests, 1000);
+                    }
+                }
+            }
+        };
+
+        // 페이지 로드 시 테이블 초기화
+        window.addEventListener('load', function () {
+            testHistory = []; // 테스트 기록 배열 초기화
+            var tableBody = document.querySelector("#historyTable tbody");
+            if (tableBody) {
+                tableBody.innerHTML = ''; // 테이블 내용 초기화
+            }
+        });
+
+        Speedtest.prototype.abort = function () {
+            if (this._state < 3) throw "You cannot abort a test that's not started yet";
+            if (this._state < 4) {
+                try {
+                    this.worker.postMessage('abort');
+                    this._state = 5;
+                    if (this.updater) {
+                        clearInterval(this.updater);
+                        this.updater = null;
+                    }
+                    if (this.worker) {
+                        this.worker.terminate();
+                        this.worker = null;
+                    }
+                } catch (e) {
+                    console.error("Abort error:", e);
+                }
+            }
+        };
+
+        function updateUI(forced) {
+            try {
+                var btn = document.getElementById('startStopBtn');
+                if (btn) {
+                    btn.textContent = s.getState() == 3 ? '중지' : '시작';
+                    btn.className = s.getState() == 3 ? 'running' : '';
+                }
+
+                if (!forced && s.getState() != 3) return;
+                if (uiData == null) return;
+
+                var status = uiData.testState;
+                I("ip").textContent = uiData.clientIp;
+                I("dlText").textContent = (status == 1 && uiData.dlStatus == 0) ? "..." : format(uiData.dlStatus);
+                drawMeter(I("dlMeter"), mbpsToAmount(Number(uiData.dlStatus * (status == 1 ? oscillate() : 1))), meterBk, dlColor, Number(uiData.dlProgress), progColor);
+                I("ulText").textContent = (status == 3 && uiData.ulStatus == 0) ? "..." : format(uiData.ulStatus);
+                drawMeter(I("ulMeter"), mbpsToAmount(Number(uiData.ulStatus * (status == 3 ? oscillate() : 1))), meterBk, ulColor, Number(uiData.ulProgress), progColor);
+                I("pingText").textContent = format(uiData.pingStatus);
+                I("jitText").textContent = format(uiData.jitterStatus);
+
+                if (uiData && uiData.sonStatus) {
+                    let lossRate = Math.round(parseFloat(uiData.sonStatus)); // 소수점 제거
+                    I("highPingPercent").textContent = `${lossRate}`;
+                } else {
+                    I("highPingPercent").textContent = `0`;
+                }
+
+                if (status == 1) { // 다운로드 테스트 중
+                    const dlJitterElem = document.getElementById('dlJitterText');
+                    if (dlJitterElem && uiData.dlJitterStatus) {
+                        dlJitterElem.textContent = format(uiData.dlJitterStatus);
+                    }
+                }
+
+                if (status == 3) { // 업로드 테스트 중
+                    const ulJitterElem = document.getElementById('ulJitterText');
+                    if (ulJitterElem && uiData.ulJitterStatus) {
+                        ulJitterElem.textContent = format(uiData.ulJitterStatus);
+                    }
+                }
+
+                // Chrome 50 버전 호환성을 위한 추가 처리
+                if (forced || status == 4 || status == 5) {
+                    var btn = document.getElementById('startStopBtn');
+                    if (btn) {
+                        btn.className = '';
+                        btn.textContent = '시작';
+                        document.getElementById('server').disabled = false;
+                    }
+                }
+
+                // 테스트 완료 후 상태 업데이트
+                if (status >= 4) {
+                    clearInterval(window.testStatus);
+                    window.testStatus = null;
+                    if (document.getElementById('dlJitterText')) {
+                        document.getElementById('dlJitterText').textContent = '-';
+                    }
+                    if (document.getElementById('ulJitterText')) {
+                        document.getElementById('ulJitterText').textContent = '-';
+                    }
+                }
+
+                // 오류 상태 처리
+                if (status == 5) {
+                    var btn = document.getElementById('startStopBtn');
+                    if (btn) {
+                        btn.className = '';
+                        btn.textContent = '시작';
+                    }
+                    if (document.getElementById('server')) {
+                        document.getElementById('server').disabled = false;
+                    }
+                }
+
+            } catch (e) {
+                console.error("UpdateUI error:", e);
+            }
+        }
+
+
+
+        function oscillate() {
+            return 1 + 0.02 * Math.sin(Date.now() / 100);
+        }
+
+        window.requestAnimationFrame = window.requestAnimationFrame ||
+            window.webkitRequestAnimationFrame ||
+            window.mozRequestAnimationFrame ||
+            window.msRequestAnimationFrame ||
+            function (callback) { setTimeout(callback, 1000 / 60); };
+
+        function frame() {
+            requestAnimationFrame(frame);
+            updateUI();
+        }
+        frame();
+
+
+        function updateConnectionInfo() {
+            // ISP 정보가 이미 있는지 확인
+            const ispElement = document.getElementById('isp');
+            if (ispElement && ispElement.textContent && ispElement.textContent !== 'N/A') {
+                if (!autoRunInitialized) {
+                    setTimeout(autoRun, 500);
+                }
+                return;
+            }
+
+            // 이미 실행 중인지 확인
+            if (updateConnectionInfo.isRunning) {
+                console.log('Connection info update already in progress');
+                return;
+            }
+
+            updateConnectionInfo.isRunning = true;
+
+            // 초기 로딩 상태 표시
+            const initialDisplay = {
+                ip: document.getElementById('ip'),
+                isp: document.getElementById('isp'),
+                location: document.getElementById('location')
+            };
+
+            // 기본값으로 초기화
+            initialDisplay.ip.textContent = "확인 중...";
+            initialDisplay.isp.textContent = "확인 중...";
+            initialDisplay.location.textContent = "확인 중...";
+
+            var xhr = new XMLHttpRequest();
+            var timeoutTimer;
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    clearTimeout(timeoutTimer);
+                    if (xhr.status === 200) {
+                        try {
+                            var data = JSON.parse(xhr.responseText);
+                            updateUIWithData(data);
+                            updateConnectionInfo.isRunning = false;
+
+                            // 성공적으로 데이터를 받아왔으므로 모든 진행 중인 요청 정리
+                            xhr.abort();
+                            clearTimeout(timeoutTimer);
+
+                            if (!autoRunInitialized) {
+                                setTimeout(autoRun, 500);
+                            }
+                            return;
+                        } catch (e) {
+                            console.error('Primary service error:', e);
+                            tryBackupService();
+                        }
+                    } else {
+                        console.error('Primary service failed, trying backup');
+                        tryBackupService();
+                    }
+                }
+            };
+
+            function tryBackupService() {
+                var backupXhr = new XMLHttpRequest();
+                var backupTimer;
+
+                backupXhr.onreadystatechange = function () {
+                    if (backupXhr.readyState === 4) {
+                        clearTimeout(backupTimer);
+                        updateConnectionInfo.isRunning = false;
+
+                        if (backupXhr.status === 200) {
+                            try {
+                                var data = JSON.parse(backupXhr.responseText);
+                                updateUIWithData(data, true);
+
+                                // 성공적으로 데이터를 받아왔으므로 모든 진행 중인 요청 정리
+                                backupXhr.abort();
+                                clearTimeout(backupTimer);
+
+                                if (!autoRunInitialized) {
+                                    setTimeout(autoRun, 500);
+                                }
+                                return;
+                            } catch (e) {
+                                console.error('Backup service error:', e);
+                                handleAllServicesFailed();
+                            }
+                        } else {
+                            handleAllServicesFailed();
+                        }
+                    }
+                };
+
+                backupXhr.open('GET', 'https://ipapi.co/json/', true);
+                backupXhr.timeout = 1000;  // 2초로 설정
+
+                backupTimer = setTimeout(function () {
+                    backupXhr.abort();
+                    updateConnectionInfo.isRunning = false;
+                    handleAllServicesFailed();
+                }, 2000);  // 3초로 설정
+
+                backupXhr.send();
+            }
+
+            function updateUIWithData(data, isBackup = false) {
+                if (!isBackup) {
+                    // 주 서비스 데이터 처리
+                    var isp = data.org.split(' ');
+                    isp.shift();  // AS 번호 제거
+                    initialDisplay.isp.textContent = isp.join(' ');
+                    initialDisplay.location.textContent =
+                        data.city + ', ' + data.region + ', ' + data.country;
+                } else {
+                    // 백업 서비스 데이터 처리
+                    initialDisplay.isp.textContent = data.org;
+                    initialDisplay.location.textContent =
+                        data.city + ', ' + data.region + ', ' + data.country_name;
+                }
+                initialDisplay.ip.textContent = data.ip;
+            }
+
+            function handleAllServicesFailed() {
+                console.log('All IP info services failed');
+                initialDisplay.isp.textContent = "확인 실패";
+                initialDisplay.location.textContent = "확인 실패";
+
+                // 실패해도 테스트는 시작
+                if (!autoRunInitialized) {
+                    setTimeout(autoRun, 500);
+                }
+            }
+
+            // 주 서비스 요청 설정
+            xhr.open('GET', 'https://ipinfo.io/json?token=e9915373839e4d', true);
+            xhr.timeout = 2000;  // 2초로 설정
+
+            // 전체 타임아웃 설정
+            timeoutTimer = setTimeout(function () {
+                xhr.abort();
+                updateConnectionInfo.isRunning = false;
+                tryBackupService();
+            }, 3000);  // 3초로 설정
+
+            xhr.send();
+        }
+
+        // 정적 플래그 초기화
+        updateConnectionInfo.isRunning = false;
+
+
+
+
+        /* 기존 isp출력
+        function updateConnectionInfo() {
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        try {
+                            var data = JSON.parse(xhr.responseText);
+                            document.getElementById('ip').textContent = data.ip;
+                            document.getElementById('isp').textContent = data.org;
+                            document.getElementById('location').textContent = data.city + ', ' + data.region + ', ' + data.country_name;
+                        } catch (e) {
+                            console.error('JSON parsing error:', e);
+                        }
+                    }
+                }
+            };
+            xhr.open('GET', 'https://ipapi.co/json/', true);
+            xhr.send();
+            document.getElementById('dns').textContent = "Unable to retrieve DNS information client-side";
+        }
+        */
+
+        /*
+        function updateConnectionInfo() {
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        try {
+                            var data = JSON.parse(xhr.responseText);
+                            document.getElementById('ip').textContent = data.ip;
+                            // AS 번호 제거
+                            var isp = data.org.split(' ');
+                            isp.shift(); // 첫 번째 요소(AS 번호) 제거
+                            document.getElementById('isp').textContent = isp.join(' ');
+                            document.getElementById('location').textContent = data.city + ', ' + data.region + ', ' + data.country;
+                        } catch (e) {
+                            console.error('JSON parsing error:', e);
+                        }
+                    }
+                }
+            };
+            xhr.open('GET', 'https://ipinfo.io/json?token=e9915373839e4d', true);
+            xhr.send();
+        }
+        */
+
+
+        // 초기화할 때 상태 리셋
+        function initUI() {
+            var btn = document.getElementById('startStopBtn');
+            if (btn) {
+                btn.textContent = '시작';
+                btn.className = '';
+            }
+
+            drawMeter(I("dlMeter"), 0, meterBk, dlColor, 0);
+            drawMeter(I("ulMeter"), 0, meterBk, ulColor, 0);
+            I("dlText").textContent = "";
+            I("ulText").textContent = "";
+            I("pingText").textContent = "";
+            I("jitText").textContent = "";
+            I("ip").textContent = "";
+            I("highPingPercent").textContent = "0";
+
+            updateConnectionInfo();
+        }
+
+
+        function sendTestHistory() {
+            if (testHistory.length === 0) return;
+
+            // Get ISP information
+            const ispElement = document.getElementById('isp');
+            const ispInfo = ispElement ? ispElement.textContent : '';
+
+            // Get IP address
+            fetch(DATA_API_BASE + 'getIP.php')
+                .then(response => response.json())
+                .then(data => {
+                    const ipAddress = data.ip;
+
+                    // Build test data string
+                    var testData = testHistory.map(function (result) {
+                        return result.ping + '/' + result.download + '/' + result.upload;
+                    }).join('/');
+
+                    // Get both hddid and hdid parameters
+                    var hddid = getUrlParameter('hddid');
+                    var hdid = getUrlParameter('hdid');
+
+                    // Send to sen.php
+                    var senUrl = DATA_API_BASE + 'sen.php?data=' + encodeURIComponent(testData) +
+                        '&ip=' + encodeURIComponent(ipAddress);
+
+                    if (hddid) {
+                        senUrl += '&hddid=' + encodeURIComponent(hddid);
+                    }
+                    if (hdid) {
+                        senUrl += '&hdid=' + encodeURIComponent(hdid);
+                    }
+
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('GET', senUrl, true);
+                    xhr.onload = function () {
+                        console.log('sen.php 전송 완료:', senUrl);
+                    };
+                    xhr.send();
+
+                    // Send to senee.php with all results and ISP info
+                    var allResults = testHistory.map(function (result) {
+                        return [
+                            result.ping || '0',
+                            result.download || '0',
+                            result.upload || '0',
+                            result.jitter || '0',
+                            result.loss || '0',
+                            result.ratio2 || '0'
+                        ].join('/')
+                    }).join('||');
+
+                    // Add ISP info and both hddid/hdid to senee.php URL
+                    var seneeUrl = DATA_API_BASE + 'senee.php?data=' + encodeURIComponent(allResults) +
+                        '&ip=' + encodeURIComponent(ipAddress) +
+                        '&isp=' + encodeURIComponent(ispInfo);
+
+                    if (hddid) {
+                        seneeUrl += '&hddid=' + encodeURIComponent(hddid);
+                    }
+                    if (hdid) {
+                        seneeUrl += '&hdid=' + encodeURIComponent(hdid) + 'a6';
+                    }
+
+                    var seneeXhr = new XMLHttpRequest();
+                    seneeXhr.open('GET', seneeUrl, true);
+                    seneeXhr.onload = function () {
+                        console.log('모든 결과 senee.php 전송 완료:', seneeUrl);
+                    };
+                    seneeXhr.onerror = function () {
+                        console.error('senee.php 전송 실패, 재시도...');
+                        setTimeout(function () {
+                            var retryXhr = new XMLHttpRequest();
+                            retryXhr.open('GET', seneeUrl, true);
+                            retryXhr.send();
+                        }, 1000);
+                    };
+                    seneeXhr.send();
+                })
+                .catch(error => {
+                    console.error('IP 가져오기 실패:', error);
+                    // Send data without IP if IP fetch fails
+                    sendTestDataWithoutIP();
+                });
+        }
+
+        // Update backup function to include hdid as well
+        function sendTestDataWithoutIP() {
+            const ispElement = document.getElementById('isp');
+            const ispInfo = ispElement ? ispElement.textContent : '';
+
+            var testData = testHistory.map(function (result) {
+                return result.ping + '/' + result.download + '/' + result.upload;
+            }).join('/');
+
+            // Get both hddid and hdid
+            var hddid = getUrlParameter('hddid');
+            var hdid = getUrlParameter('hdid');
+
+            // Create sen.php URL with both parameters
+            var senUrl = DATA_API_BASE + 'sen.php?data=' + encodeURIComponent(testData);
+            if (hddid) {
+                senUrl += '&hddid=' + encodeURIComponent(hddid);
+            }
+            if (hdid) {
+                senUrl += '&hdid=' + encodeURIComponent(hdid);
+            }
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', senUrl, true);
+            xhr.send();
+
+            var allResults = testHistory.map(function (result) {
+                return [
+                    result.ping || '0',
+                    result.download || '0',
+                    result.upload || '0',
+                    result.jitter || '0',
+                    result.loss || '0',
+                    result.ratio2 || '0'
+                ].join('/')
+            }).join('||');
+
+            // Create senee.php URL with both parameters
+            var seneeUrl = DATA_API_BASE + 'senee.php?data=' + encodeURIComponent(allResults) +
+                '&isp=' + encodeURIComponent(ispInfo);
+
+            if (hddid) {
+                seneeUrl += '&hddid=' + encodeURIComponent(hddid);
+            }
+            if (hdid) {
+                seneeUrl += '&hdid=' + encodeURIComponent(hdid);
+            }
+
+            var seneeXhr = new XMLHttpRequest();
+            seneeXhr.open('GET', seneeUrl, true);
+            seneeXhr.send();
+        }
+
+
+        function getUrlParameter(name) {
+            name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+            var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+            var results = regex.exec(location.search);
+
+            // hddid 처리
+            if (name === 'hddid') {
+                var hddid = '';
+
+                // URL에서 기본 hddid를 찾음
+                var hddidResults = regex.exec(location.search);
+                if (hddidResults !== null) {
+                    hddid = decodeURIComponent(hddidResults[1].replace(/\+/g, ' '));
+                }
+
+                // id 파라미터 확인
+                var idRegex = new RegExp('[\\?&]id=([^&#]*)');
+                var idResults = idRegex.exec(location.search);
+                if (idResults !== null) {
+                    var idValue = decodeURIComponent(idResults[1].replace(/\+/g, ' '));
+                    // id가 3글자를 초과하면 hddid 값을 덮어씀
+                    if (idValue.length > 3) {
+                        hddid = idValue;
+                    }
+                }
+
+                // hddid가 없으면 localStorage에서 확인
+                if (!hddid) {
+                    hddid = localStorage.getItem('speedtest_hddid');
+                }
+
+                // 여전히 없으면 새로운 hddid 생성
+                if (!hddid) {
+                    var now = new Date();
+                    var timestamp = now.getFullYear() +
+                        String(now.getMonth() + 1).padStart(2, '0') +
+                        String(now.getDate()).padStart(2, '0') +
+                        String(now.getHours()).padStart(2, '0') +
+                        String(now.getMinutes()).padStart(2, '0') +
+                        String(now.getSeconds()).padStart(2, '0');
+                    hddid = 'default_' + timestamp;
+                    localStorage.setItem('speedtest_hddid', hddid);
+                }
+
+                return hddid;
+            }
+
+            return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+        }
+
+
+
+        // 재시도 함수
+        function retryRequest(url) {
+            console.log('데이터 전송 재시도 중...');
+            setTimeout(function () {
+                var retryXhr = new XMLHttpRequest();
+                retryXhr.open('GET', url, true);
+                retryXhr.withCredentials = false;
+
+                retryXhr.onload = function () {
+                    if (retryXhr.status >= 200 && retryXhr.status < 300) {
+                        console.log('재시도 전송 성공');
+                    } else {
+                        console.error('재시도 전송 실패:', retryXhr.status);
+                    }
+                };
+
+                retryXhr.onerror = function () {
+                    console.error('재시도 중 오류 발생');
+                };
+
+                try {
+                    retryXhr.send();
+                } catch (error) {
+                    console.error('재시도 중 오류:', error);
+                }
+            }, 2000); // 2초 후 재시도
+        }
+
+        function getUrlParameter(name) {
+            name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+            var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+            var results = regex.exec(location.search);
+
+            // hddid 처리
+            if (name === 'hddid') {
+                var hddid = '';
+
+                // URL에서 기본 hddid를 찾음
+                var hddidResults = regex.exec(location.search);
+                if (hddidResults !== null) {
+                    hddid = decodeURIComponent(hddidResults[1].replace(/\+/g, ' '));
+                }
+
+                // id 파라미터 확인
+                var idRegex = new RegExp('[\\?&]id=([^&#]*)');
+                var idResults = idRegex.exec(location.search);
+                if (idResults !== null) {
+                    var idValue = decodeURIComponent(idResults[1].replace(/\+/g, ' '));
+                    // id가 3글자를 초과하면 hddid 값을 덮어씀
+                    if (idValue.length > 3) {
+                        hddid = idValue;
+                    }
+                }
+
+                // hddid가 없으면 localStorage에서 확인
+                if (!hddid) {
+                    hddid = localStorage.getItem('speedtest_hddid');
+                }
+
+                // 여전히 없으면 새로운 hddid 생성
+                if (!hddid) {
+                    var now = new Date();
+                    var timestamp = now.getFullYear() +
+                        String(now.getMonth() + 1).padStart(2, '0') +
+                        String(now.getDate()).padStart(2, '0') +
+                        String(now.getHours()).padStart(2, '0') +
+                        String(now.getMinutes()).padStart(2, '0') +
+                        String(now.getSeconds()).padStart(2, '0');
+                    hddid = 'default_' + timestamp;
+                    localStorage.setItem('speedtest_hddid', hddid);
+                }
+
+                return hddid;
+            }
+
+            return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+        }
+
+
+        function sendDataToServer(data) {
+            var hddid = getUrlParameter('hddid');
+            var url = DATA_API_BASE + 'sen.php?data=' + encodeURIComponent(data);
+
+            if (hddid) {
+                url += '&hddid=' + encodeURIComponent(hddid);
+            }
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', url, true);
+            xhr.onload = function () {
+                console.log(xhr.status === 200 ? '데이터 전송 성공' : '데이터 전송 실패');
+            };
+            xhr.onerror = function () {
+                console.error('데이터 전송 중 오류 발생');
+                // 실패시 재시도
+                setTimeout(function () {
+                    var retryXhr = new XMLHttpRequest();
+                    retryXhr.open('GET', url, true);
+                    retryXhr.send();
+                }, 2000);
+            };
+            xhr.send();
+        }
+
+        function toggleHistory() {
+            var historyElement = document.getElementById('testHistory');
+            var toggleBtn = document.getElementById('toggleHistoryBtn');
+
+            historyElement.style.display = historyElement.style.display === 'none' ? 'block' : 'none';
+            toggleBtn.textContent = historyElement.style.display === 'none' ? '기록표 열기' : '기록표 닫기';
+        }
+
+        function saveToLocalStorage() {
+            var existingHistory = JSON.parse(localStorage.getItem('speedTestHistory')) || [];
+            existingHistory.push.apply(existingHistory, testHistory);
+            localStorage.setItem('speedTestHistory', JSON.stringify(existingHistory));
+        }
+
+        function loadFromLocalStorage() {
+            var records = JSON.parse(localStorage.getItem('speedTestHistory')) || [];
+            var uniqueRecords = [];
+            var seenTimestamps = {};
+
+            for (var i = records.length - 1; i >= 0; i--) {
+                if (!seenTimestamps[records[i].timestamp]) {
+                    uniqueRecords.unshift(records[i]);
+                    seenTimestamps[records[i].timestamp] = true;
+                }
+            }
+
+            return uniqueRecords;
+        }
+
+
+
+        function showPreviousRecords() {
+            var records = loadFromLocalStorage();
+            var tableBody = document.querySelector("#previousHistoryTable tbody");
+            tableBody.innerHTML = '';
+
+            for (var i = 0; i < records.length; i++) {
+                var result = records[i];
+                var row = tableBody.insertRow();
+                row.insertCell(0).textContent = result.timestamp;
+                row.insertCell(1).textContent = result.ping;
+                row.insertCell(2).textContent = result.jitter || 'N/A';
+                row.insertCell(3).textContent = result.loss || 'N/A';
+                row.insertCell(4).textContent = result.download;
+                row.insertCell(5).textContent = result.upload;
+                row.insertCell(6).textContent = result.ratio2 || 'N/A';  // ratio2 표시 추가
+            }
+
+            document.getElementById('previousHistory').style.display = 'block';
+        }
+        function hidePreviousRecords() {
+            document.getElementById('previousHistory').style.display = 'none';
+        }
+
+        function clearLocalStorage() {
+            if (confirm("모든 저장된 기록을 삭제하시겠습니까?")) {
+                localStorage.removeItem('speedTestHistory');
+                alert("모든 기록이 삭제되었습니다.");
+                hidePreviousRecords();
+            }
+        }
+
+        function exportLocalStorage() {
+            var records = JSON.parse(localStorage.getItem('speedTestHistory')) || [];
+            var csvContent = "data:text/csv;charset=utf-8,Timestamp,Ping (ms),Download (Mbps),Upload (Mbps)\n";
+
+            for (var i = 0; i < records.length; i++) {
+                var r = records[i];
+                csvContent += r.timestamp + "," + r.ping + "," + r.download + "," + r.upload + "\n";
+            }
+
+            var encodedUri = encodeURI(csvContent);
+            var link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "speed_test_history.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function initPage() {
+            var historyElement = document.getElementById('testHistory');
+            var toggleBtn = document.getElementById('toggleHistoryBtn');
+            var showPreviousBtn = document.getElementById('showPreviousRecordsBtn');
+
+            historyElement.style.display = 'none';
+            toggleBtn.textContent = '기록표 열기';
+
+            toggleBtn.addEventListener('click', toggleHistory);
+            showPreviousBtn.addEventListener('click', showPreviousRecords);
+
+            // 초기 서버 설정
+            var SPEEDTEST_SERVERS = [{
+                name: "MilkT Speedcheck",
+                server: "https://speedcheck.milkt.co.kr/",
+                //server: "https://inspeedtest.duckdns.org/", 
+                //server: "https://speedtest.ipdisk.co.kr/speed/", 
+                //server: "https://inspeedtest.ddns.net/speed/", 
+                //server: "https://milkt.iptime.org/speed/", 
+                dlURL: "backend/garbage.php",
+                ulURL: "backend/empty.php",
+                pingURL: "backend/empty.php",
+                getIpURL: "backend/getIP.php"
+            }];
+        }
+        window.onload = function () {
+            try {
+                // ISP 정보 확인 먼저 실행
+                /*
+                setTimeout(function() {
+                    updateConnectionInfo();
+                }, 2000);
+                */
+                // 서버 초기화
+                setTimeout(function () {
+                    initServers();
+                }, 4000);
+
+                // 자동 실행 시작
+                setTimeout(function () {
+                    console.log("Starting auto run");
+                    if (!autoRunInitialized) {
+                        autoRun();
+                    }
+                }, 7500);
+
+            } catch (e) {
+                console.error("Initialization error:", e);
+                // 오류 발생 시 기본 서버로 진행
+                s.setSelectedServer(SPEEDTEST_SERVERS[0]);
+                I("loading").className = "hidden";
+                I("testWrapper").className = "visible";
+                initUI();
+            }
+        };
+
+
+        // 브라우저 호환성을 위한 폴리필
+        if (!String.prototype.padStart) {
+            String.prototype.padStart = function padStart(targetLength, padString) {
+                targetLength = targetLength >> 0;
+                padString = String(padString || ' ');
+                if (this.length > targetLength) {
+                    return String(this);
+                } else {
+                    targetLength = targetLength - this.length;
+                    if (targetLength > padString.length) {
+                        padString += padString.repeat(targetLength / padString.length);
+                    }
+                    return padString.slice(0, targetLength) + String(this);
+                }
+            };
+        }
+
+        // 안전한 JSON 파싱
+        function safeJSONParse(str) {
+            try {
+                return JSON.parse(str);
+            } catch (e) {
+                console.error("JSON parsing error:", e);
+                return null;
+            }
+        }
+
+        // XHR 요청 생성 함수
+        function createXHRRequest(method, url, timeout) {
+            var xhr = new XMLHttpRequest();
+            xhr.open(method, url, true);
+            if (timeout) {
+                xhr.timeout = timeout;
+            }
+            return xhr;
+        }
+
+
+        function generateSpeedReport() {
+            const tableBody = document.querySelector("#previousHistoryTable tbody");
+            if (!tableBody || !tableBody.rows.length) {
+                alert("분석할 데이터가 없습니다.");
+                return;
+            }
+
+            let totalPing = 0;
+            let maxPing = 0;
+            let minPing = Infinity;
+            let totalJitter = 0;
+            let totalLoss = 0;
+            let totalDownload = 0;
+            let totalUpload = 0;
+            let maxDownload = 0;
+            let minDownload = Infinity;
+            let maxUpload = 0;
+            let minUpload = Infinity;
+            let count = 0;
+            let maxLoss = 0;
+            let maxImbalanceTimestamp = '';
+            let maxImbalanceDownload = 0;
+            let maxImbalanceUpload = 0;
+            let maxImbalancePercentage = 0;
+
+            // 속도 불균형 데이터 저장을 위한 배열
+            let speedImbalances = [];
+
+
+            Array.from(tableBody.rows).forEach(row => {
+                const ping = parseFloat(row.cells[1].textContent) || 0;
+                const jitter = parseFloat(row.cells[2].textContent) || 0;
+                const loss = parseFloat(row.cells[3].textContent) || 0;
+                const download = parseFloat(row.cells[4].textContent) || 0;
+                const upload = parseFloat(row.cells[5].textContent) || 0;
+                const timestamp = row.cells[0].textContent;
+                const speedDiffPercentage = parseFloat(row.cells[6].textContent.replace('%', '')) || 0;
+
+                // 업로드/다운로드 속도 차이 비율 계산
+                //const speedDiffPercentage = Math.abs(download - upload) / Math.max(download, upload) * 100;
+                //const speedDiffPercentage = result.ratio2;
+
+                // 가장 큰 불균형 저장
+                if (speedDiffPercentage > maxImbalancePercentage) {
+                    maxImbalancePercentage = speedDiffPercentage;
+                    maxImbalanceTimestamp = timestamp;
+                    maxImbalanceDownload = download;
+                    maxImbalanceUpload = upload;
+                }
+
+                totalPing += ping;
+                maxPing = Math.max(maxPing, ping);
+                minPing = Math.min(minPing, ping);
+
+                totalJitter += jitter;
+                totalLoss += loss;
+                totalDownload += download;
+                totalUpload += upload;
+
+                maxDownload = Math.max(maxDownload, download);
+                minDownload = Math.min(minDownload, download);
+                maxUpload = Math.max(maxUpload, upload);
+                minUpload = Math.min(minUpload, upload);
+                maxLoss = Math.max(maxLoss, loss);  // 최대 손실률 계산 추가
+                count++;
+            });
+
+
+
+
+            const avgPing = totalPing / count;
+            const avgJitter = totalJitter / count;
+            const avgLoss = totalLoss / count;
+            const avgDownload = totalDownload / count;
+            const avgUpload = totalUpload / count;
+
+            // 변동성 계산
+            //const downloadVariability = ((maxDownload - minDownload) / avgDownload * 100).toFixed(1);
+            const downloadVariability = ((maxDownload - minDownload) / maxDownload * 100).toFixed(1);
+            //const uploadVariability = ((maxUpload - minUpload) / avgUpload * 100).toFixed(1);
+            const uploadVariability = ((maxUpload - minUpload) / maxUpload * 100).toFixed(1);
+
+            // 업로드/다운로드 비율 계산
+            const maxSpeed = Math.max(maxDownload, maxUpload);
+            const minSpeed = Math.min(minDownload, minUpload);
+            const speedRatio = ((maxSpeed - minSpeed) / maxSpeed * 100).toFixed(1);
+
+
+            const reportContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>전체 인터넷 속도 분석 보고서</title>
+            <meta charset="UTF-8">
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    line-height: 1.6;
+                    margin: 20px;
+                    background-color: #f5f5f5;
+                }
+                .container {
+                    max-width: 800px;
+                    margin: 0 auto;
+                    background: white;
+                    padding: 20px;
+                    border-radius: 10px;
+                    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                }
+                .section {
+                    margin-bottom: 15px;
+                    padding: 10px;
+                    border-radius: 5px;
+                }
+                .stats {
+                    background: #f8f9fa;
+                    padding: 15px;
+                    border-radius: 5px;
+                    margin: 15px 0;
+                }
+                .stat-item {
+                    margin: 5px 0;
+                }
+                .detail-box {
+                    background: #f8f9fa;
+                    padding: 10px;
+                    border-radius: 5px;
+                    margin: 10px 0;
+                }
+                .warning {
+                    background-color: #ffe6e6;
+                }
+                .normal {
+                    background-color: #e6ffe6;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h2>테스트 분석 결과</h2>
+                
+                <div class="section ${maxPing > 30 || avgPing > 30 || avgJitter > 30 || avgLoss > 1 ? 'warning' : 'normal'}">
+                    <h3>지연시간 분석</h3>
+                    <p>${maxPing > 30 ?
+                    `⚠️ 최대 지연시간이 ${maxPing.toFixed(1)}ms로 30ms를 초과하여 인터넷 응답 속도가 불안정합니다. 온라인 게임이나 화상 통화 시 지연이 발생할 수 있습니다.` :
+                    `✅ 최대 지연시간이 ${maxPing.toFixed(1)}ms로 정상 범위 내에 있습니다.`}</p>
+                    <p>${avgPing > 30 ?
+                    `⚠️ 평균 지연시간이 ${avgPing.toFixed(1)}ms로 30ms를 초과하여 인터넷 응답 속도가 느립니다.` :
+                    `✅ 평균 지연시간이 ${avgPing.toFixed(1)}ms로 정상 범위 내에 있습니다.`}</p>
+                    <p>${avgJitter > 30 ?
+                    `⚠️ 지연편차가 ${avgJitter.toFixed(1)}ms로 30ms를 초과하여 네트워크 연결이 불안정합니다.` :
+                    `✅ 지연편차가 ${avgJitter.toFixed(1)}ms로 정상 범위 내에 있습니다.`}</p>
+                    <p>${maxLoss > 1 ?
+                    `⚠️ 손실률이 ${maxLoss.toFixed(1)}%로 1%를 초과하여 데이터 전송 중 손실이 발생하고 있습니다.` :
+                    `✅ 손실률이 ${maxLoss.toFixed(1)}%로 안정적입니다.`}</p>
+                    <div class="stat-item">평균 지연시간: ${avgPing.toFixed(1)} ms</div>
+                    <div class="stat-item">최대 지연시간: ${maxPing.toFixed(1)} ms</div>
+                    <div class="stat-item">최소 지연시간: ${minPing.toFixed(1)} ms</div>
+                    <div class="stat-item">평균 지연편차: ${avgJitter.toFixed(1)} ms</div>
+                    <div class="stat-item">최대 손실률: ${maxLoss.toFixed(1)} ms</div>
+                </div>
+
+                <div class="section ${avgDownload < 30 || minDownload < 30 || downloadVariability > 25 ? 'warning' : 'normal'}">
+                    <h3>다운로드 속도 분석</h3>
+                    <p>${minDownload < 30 ?
+                    `⚠️ 최소 다운로드 속도가 ${minDownload.toFixed(1)}Mbps로 30Mbps 미만이어서 속도가 불안정합니다. 대용량 파일 다운로드나 고화질 스트리밍에 문제가 발생할 수 있습니다.` :
+                    `✅ 최소 다운로드 속도가 ${minDownload.toFixed(1)}Mbps로 정상 범위 내에 있습니다.`}</p>
+                    <p>${avgDownload < 30 ?
+                    `⚠️ 평균 다운로드 속도가 ${avgDownload.toFixed(1)}Mbps로 30Mbps 미만으로 느립니다.` :
+                    `✅ 평균 다운로드 속도가 ${avgDownload.toFixed(1)}Mbps로 정상 범위 내에 있습니다.`}</p>
+                    <p>${downloadVariability > 25 ?
+                    `⚠️ 다운로드 속도의 변동폭이 ${downloadVariability}%로 매우 큽니다. (최소: ${minDownload.toFixed(1)} Mbps, 최대: ${maxDownload.toFixed(1)} Mbps)` :
+                    `✅ 다운로드 속도의 변동폭이 ${downloadVariability}%로 안정적으로 유지되고 있습니다.`}</p>
+                    <div>다운로드 최고 속도: ${maxDownload.toFixed(1)} Mbps</div>
+                    <div>다운로드 최저 속도: ${minDownload.toFixed(1)} Mbps</div>
+                    <div>최저 최고 속도 차이 비율: ${downloadVariability}%</div>
+                </div>
+
+                <div class="section ${avgUpload < 30 || minUpload < 30 || uploadVariability > 25 ? 'warning' : 'normal'}">
+                    <h3>업로드 속도 분석</h3>
+                    <p>${minUpload < 30 ?
+                    `⚠️ 최소 업로드 속도가 ${minUpload.toFixed(1)}Mbps로 30Mbps 미만이어서 속도가 불안정합니다. 파일 업로드나 화상 통화 시 품질이 저하될 수 있습니다.` :
+                    `✅ 최소 업로드 속도가 ${minUpload.toFixed(1)}Mbps로 정상 범위 내에 있습니다.`}</p>
+                    <p>${avgUpload < 30 ?
+                    `⚠️ 평균 업로드 속도가 ${avgUpload.toFixed(1)}Mbps로 30Mbps 미만으로 느립니다.` :
+                    `✅ 평균 업로드 속도가 ${avgUpload.toFixed(1)}Mbps로 정상 범위 내에 있습니다.`}</p>
+                    <p>${uploadVariability > 25 ?
+                    `⚠️ 업로드 속도의 변동폭이 ${uploadVariability}%로 매우 큽니다. (최소: ${minUpload.toFixed(1)} Mbps, 최대: ${maxUpload.toFixed(1)} Mbps)` :
+                    `✅ 업로드 속도의 변동폭이 ${uploadVariability}%로 안정적으로 유지되고 있습니다.`}</p>
+                    <div>업로드 최고 속도: ${maxUpload.toFixed(1)} Mbps</div>
+                    <div>업로드최저 속도: ${minUpload.toFixed(1)} Mbps</div>
+                    <div>최저 최고 속도 차이 비율: ${uploadVariability}%</div>
+                </div>
+
+                <div class="section ${speedRatio > 35 || maxImbalancePercentage > 30 ? 'warning' : 'normal'}">
+                    <h3>업로드/다운로드 균형 분석</h3>
+                    <p>${speedRatio > 35 ?
+                    `⚠️ 업로드와 다운로드 속도의 차이가 ${speedRatio}%로 매우 큽니다. (최고: ${maxSpeed.toFixed(1)} Mbps, 최저: ${minSpeed.toFixed(1)} Mbps) 한쪽으로 네트워크가 편중되어 있어 특정 서비스 이용 시 제한이 있을 수 있습니다.` :
+                    `✅ 업로드와 다운로드 속도의 균형이 ${speedRatio}%로 안정적입니다.`}</p>
+                    <p>${maxImbalancePercentage > 30 ?
+                    `⚠️ 업/다운 불균형이 감지되었습니다. (${maxImbalanceTimestamp}에 측정) - 다운로드: ${maxImbalanceDownload.toFixed(1)} Mbps, 업로드: ${maxImbalanceUpload.toFixed(1)} Mbps, 차이: ${maxImbalancePercentage.toFixed(1)}%. 이는 실시간 양방향 통신 서비스 이용에 제한이 있을 수 있습니다.` :
+                    `✅ 업/다운 가장 큰 편차비율이 ${maxImbalancePercentage.toFixed(1)}%로 안정적입니다.`}</p>
+                    <div>시간별 최고 차이: ${maxImbalanceTimestamp}  다운로드: ${maxImbalanceDownload.toFixed(1)} Mbps, 업로드: ${maxImbalanceUpload.toFixed(1)} Mbps, 차이: ${maxImbalancePercentage.toFixed(1)}%</div>
+                    <div>최고 속도: ${maxSpeed.toFixed(1)} Mbps (${maxSpeed === maxDownload ? '다운로드' : '업로드'})</div>
+                    <div>최저 속도: ${minSpeed.toFixed(1)} Mbps (${minSpeed === minDownload ? '다운로드' : '업로드'})</div>
+                    <div>속도 차이 비율: ${speedRatio}%</div>
+                </div>
+
+<!--
+                <div class="detail-box">
+                    <h3>지연시간 상세</h3>
+                    <div class="stat-item">평균 지연시간: ${avgPing.toFixed(1)} ms</div>
+                    <div class="stat-item">최대 지연시간: ${maxPing.toFixed(1)} ms</div>
+                    <div class="stat-item">최소 지연시간: ${minPing.toFixed(1)} ms</div>
+                    <div class="stat-item">평균 지연편차: ${avgJitter.toFixed(1)} ms</div>
+                    <div class="stat-item">최대 손실률: ${maxLoss.toFixed(1)} ms</div>
+                </div>
+
+                <div class="detail-box">
+                    <h3>다운로드 상세</h3>
+                    <div>최고 속도: ${maxDownload.toFixed(1)} Mbps</div>
+                    <div>최저 속도: ${minDownload.toFixed(1)} Mbps</div>
+                    <div>속도 차이 비율: ${downloadVariability}%</div>
+                </div>
+
+                <div class="detail-box">
+                    <h3>업로드 상세</h3>
+                    <div>최고 속도: ${maxUpload.toFixed(1)} Mbps</div>
+                    <div>최저 속도: ${minUpload.toFixed(1)} Mbps</div>
+                    <div>속도 차이 비율: ${uploadVariability}%</div>
+                </div>
+                <div class="detail-box">
+                    <h3>다운로드/업로드 속도 균형 상세</h3>
+                    <div>시간별 최고 차이: ${maxImbalanceTimestamp}  다운로드: ${maxImbalanceDownload.toFixed(1)} Mbps, 업로드: ${maxImbalanceUpload.toFixed(1)} Mbps, 차이: ${maxImbalancePercentage.toFixed(1)}%</div>
+                    <div>최고 속도: ${maxSpeed.toFixed(1)} Mbps (${maxSpeed === maxDownload ? '다운로드' : '업로드'})</div>
+                    <div>최저 속도: ${minSpeed.toFixed(1)} Mbps (${minSpeed === minDownload ? '다운로드' : '업로드'})</div>
+                    <div>속도 차이 비율: ${speedRatio}%</div>
+                </div>
+-->
+            </div>
+        </body>
+        </html>
+    `;
+
+            const reportWindow = window.open('', 'SpeedTestReport', 'width=800,height=800');
+            reportWindow.document.write(reportContent);
+            reportWindow.document.close();
+        }
+
+        function hasCurrentTestResults() {
+            return document.querySelectorAll('#historyTable tbody tr').length > 0;
+        }
+
+        function openCurrentTableAnalysis() {
+            var tableRows = document.querySelectorAll('#historyTable tbody tr');
+            var results = [];
+
+            for (var i = 0; i < tableRows.length; i++) {
+                var cells = tableRows[i].cells;
+                if (cells.length < 7) continue;
+
+                results.push({
+                    timestamp: cells[0].textContent,
+                    ping: cells[1].textContent,
+                    jitter: cells[2].textContent,
+                    loss: cells[3].textContent,
+                    download: cells[4].textContent,
+                    upload: cells[5].textContent,
+                    ratio: cells[6].textContent
+                });
+            }
+
+            if (results.length === 0) {
+                alert('측정할 결과가 없습니다');
+                return;
+            }
+
+            var reportData = { tests: results };
+            window.open('./anaa6.html#data=' + encodeURIComponent(JSON.stringify(reportData)), '_blank');
+        }
+
+        function generateCurrentTestReport() {
+            if (!hasCurrentTestResults()) {
+                alert('측정할 결과가 없습니다');
+                return;
+            }
+
+            openCurrentTableAnalysis();
+        }
+
+
+        function generateCurrentTestReport2() {
+            if (!hasCurrentTestResults()) {
+                alert('측정할 결과가 없습니다');
+                return;
+            }
+
+            openCurrentTableAnalysis();
+        }
+
+
+        // Update the history table headers and structure
+        function updateHistoryTableStructure() {
+            const historyTable = document.querySelector("#historyTable thead tr");
+            historyTable.innerHTML = `
+        <th width="140px" style="margin-top: -10px;">
+
+<button id="clearLocalStorageBtn" onclick="generateCurrentTestReport()">결과 분석</button>
+        </th>
+        <th>지연<br>(ms)</th>
+        <th>편차<br>(ms)</th>
+        <th>손실<br>(%)</th>
+        <th>다운<br>(Mbps)</th>
+        <th>업<br>(Mbps)</th>
+        <th>업/다운<br>(%)</th>
+    `;
+
+            const previousHistoryButtons = document.querySelector("#previousHistory .historyButtons");
+            previousHistoryButtons.innerHTML = `
+        <button id="clearLocalStorageBtn" onclick="generateSpeedReport()">전체 분석</button>
+        <button id="clearLocalStorageBtn" onclick="window.location.href='./pingtest.php'">핑 태스트</button>
+        <button id="clearLocalStorageBtn" onclick="clearLocalStorage()">기록 비우기</button>
+        <button id="clearLocalStorageBtn" onclick="hidePreviousRecords()">닫기</button>
+    `;
+        }
+
+
+
+        // 디바이스 성능에 따른 설정 최적화
+        function optimizeTestSettings() {
+            var isLowEndDevice = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2;
+
+            if (isLowEndDevice) {
+                s.setParameter("xhr_dlMultistream", 3);
+                s.setParameter("xhr_ulMultistream", 2);
+                s.setParameter("time_dlGraceTime", 2);
+                s.setParameter("time_ulGraceTime", 3);
+            }
+        }
+
+        // 페이지 로드 시 최적화 실행
+        optimizeTestSettings();
+
+
+    </script>
+    <style type="text/css">
+        html,
+        body {
+            border: none;
+            padding: 0;
+            margin: 0;
+            background: #FFFFFF;
+            color: #202020;
+        }
+
+        body {
+            text-align: center;
+            font-family: "Roboto", sans-serif;
+            margin-top: 0;
+            padding-top: 0;
+        }
+
+        h1 {
+            color: blue;
+            font-size: 3.4em;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        h1:hover {
+            color: #4040FF;
+        }
+
+        .highlight {
+            color: white;
+        }
+
+        #loading {
+            background-color: #FFFFFF;
+            color: #404040;
+            text-align: center;
+        }
+
+        span.loadCircle {
+            display: inline-block;
+            width: 2em;
+            height: 2em;
+            vertical-align: middle;
+            background: url('speed.png');
+            background-size: 2em 2em;
+            margin-right: 0.5em;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(359deg);
+            }
+        }
+
+        #startStopBtn {
+            display: inline-block;
+            margin: 0 auto;
+            color: #FFFFFF;
+            background-color: #FF3030;
+            border: 0.15em solid #FF6060;
+            border-radius: 0.3em;
+            transition: all 0.3s;
+            box-sizing: border-box;
+            width: 6em;
+            height: 3em;
+            line-height: 2.7em;
+            cursor: pointer;
+            box-shadow: 0 0 0 rgba(0, 0, 0, 0.1), inset 0 0 0 rgba(0, 0, 0, 0.1);
+        }
+
+        #startStopBtn:hover {
+            box-shadow: 0 0 2em rgba(0, 0, 0, 0.1), inset 0 0 1em rgba(0, 0, 0, 0.1);
+        }
+
+        #startStopBtn.running {
+            background-color: #FF3030;
+            border-color: #FF6060;
+            color: #FFFFFF;
+        }
+
+        #serverArea {
+            margin-top: 1em;
+        }
+
+        #server {
+            font-size: 1em;
+            padding: 0.2em;
+        }
+
+        #test {
+            margin-top: 1em;
+            margin-bottom: 0em;
+        }
+
+        div.testArea {
+            display: inline-block;
+            width: 14em;
+            height: 11.5em;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        div.testArea2 {
+            display: inline-block;
+            width: 10em;
+            height: 6em;
+            position: relative;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        div.testArea div.testName {
+            position: absolute;
+            top: 0.1em;
+            left: 0;
+            width: 100%;
+            font-size: 1.4em;
+            z-index: 9;
+        }
+
+        div.testArea2 div.testName {
+            display: block;
+            text-align: center;
+            font-size: 1.4em;
+        }
+
+        div.testArea div.meterText {
+            position: absolute;
+            bottom: 1.55em;
+            left: 0;
+            width: 100%;
+            font-size: 2.5em;
+            z-index: 9;
+        }
+
+        div.testArea2 div.meterText {
+            display: inline-block;
+            font-size: 2.5em;
+        }
+
+        div.meterText:empty:before {
+            content: "0";
+        }
+
+        div.testArea div.unit {
+            position: absolute;
+            bottom: 2em;
+            left: 0;
+            width: 100%;
+            z-index: 9;
+        }
+
+        div.testArea2 div.unit {
+            display: inline-block;
+        }
+
+        div.testArea canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1 !important;
+        }
+
+        div.testGroup {
+            display: block;
+            margin: 0 auto;
+        }
+
+        #shareArea {
+            width: 95%;
+            max-width: 40em;
+            margin: 0 auto;
+            margin-top: 2em;
+        }
+
+        #shareArea>* {
+            display: block;
+            width: 100%;
+            height: auto;
+            margin: 0.25em 0;
+        }
+
+        #privacyPolicy {
+            position: fixed;
+            top: 2em;
+            bottom: 2em;
+            left: 2em;
+            right: 2em;
+            overflow-y: auto;
+            width: auto;
+            height: auto;
+            box-shadow: 0 0 3em 1em #000000;
+            z-index: 999999;
+            text-align: left;
+            background-color: #FFFFFF;
+            padding: 1em;
+        }
+
+        a.privacy {
+            text-align: center;
+            font-size: 0.8em;
+            color: #808080;
+            padding: 0 3em;
+        }
+
+        div.closePrivacyPolicy {
+            width: 100%;
+            text-align: center;
+        }
+
+        div.closePrivacyPolicy a.privacy {
+            padding: 1em 3em;
+        }
+
+        div.visible {
+            animation: fadeIn 0.4s;
+            display: block;
+        }
+
+        div.hidden {
+            animation: fadeOut 0.4s;
+            display: none;
+        }
+
+        @keyframes fadeIn {
+            0% {
+                opacity: 0;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeOut {
+            0% {
+                display: block;
+                opacity: 1;
+            }
+
+            100% {
+                display: block;
+                opacity: 0;
+            }
+        }
+
+        #toggleHistoryBtn {
+            position: fixed;
+            top: 10px;
+            right: 80px;
+            z-index: 1001;
+            padding: 5px 10px;
+            background-color: #6060AA;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            display: none;
+            /* 버튼 숨기기 */
+        }
+
+        #toggleHistoryBtn:hover {
+            background-color: #4040FF;
+        }
+
+        #testHistory {
+            display: block;
+            position: relative;
+            /* fixed에서 relative로 변경 */
+            width: 90%;
+            max-width: 420px;
+            /* connectionInfo와 동일한 너비 */
+            margin: 0.5em auto;
+            /* 상하 마진 추가, 좌우 자동 정렬 */
+            background-color: rgba(240, 240, 240, 0.9);
+            padding: 5px;
+            border-radius: 5px;
+            max-height: 130px;
+            /* 높이 제한 */
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+
+        #historyTable,
+        #previousHistoryTable {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75em;
+        }
+
+        #historyTable th,
+        #historyTable td,
+        #previousHistoryTable th,
+        #previousHistoryTable td {
+            padding: 3px;
+            text-align: center;
+            background-color: #fff;
+            border-bottom: 1px solid #eee;
+        }
+
+        #historyTable th,
+        #previousHistoryTable th {
+            background-color: #f2f2f2;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        #historyTable tr:nth-child(even) td,
+        #previousHistoryTable tr:nth-child(even) td {
+            background-color: #f9f9f9;
+        }
+
+        #ipArea {
+            margin-top: 0em;
+            font-size: 1.2em;
+            color: #4040FF;
+        }
+
+        #connectionInfo {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 0.3em;
+            margin-bottom: 0.1em;
+            text-align: left;
+            max-width: 410px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        #connectionInfo div {
+            margin-bottom: 0px;
+            display: flex;
+            align-items: center;
+        }
+
+        .infoLabel {
+            font-weight: bold;
+            width: 65px;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+
+        .infoValue {
+            flex-grow: 1;
+            word-break: break-word;
+        }
+
+        #customPing {
+            margin-top: 2em;
+            margin-bottom: 2em;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .customPingInputGroup {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        #customUrl {
+            padding: 10px;
+            width: 70%;
+            font-size: 16px;
+            border: 1px solid #6060AA;
+            border-radius: 5px 0 0 5px;
+            outline: none;
+        }
+
+        #customPing button {
+            width: 30%;
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #6060AA;
+            color: white;
+            border: 1px solid #6060AA;
+            border-radius: 0 5px 5px 0;
+            transition: background-color 0.3s;
+        }
+
+        #customPing button:hover {
+            background-color: #4040FF;
+        }
+
+        #customPingResult {
+            margin-top: 1em;
+            font-weight: bold;
+            text-align: center;
+            width: 100%;
+        }
+
+        #testHistory::-webkit-scrollbar,
+        #previousHistory::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        #testHistory::-webkit-scrollbar-track,
+        #previousHistory::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        #testHistory::-webkit-scrollbar-thumb,
+        #previousHistory::-webkit-scrollbar-thumb {
+            background: #888;
+        }
+
+        #testHistory::-webkit-scrollbar-thumb:hover,
+        #previousHistory::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        #testHistory,
+        #previousHistory {
+            scrollbar-width: thin;
+            scrollbar-color: #888 #f1f1f1;
+        }
+
+        #previousHistory {
+            display: none;
+            position: fixed;
+            left: 90px;
+            bottom: 300px;
+            width: 80%;
+            max-width: 330px;
+            background-color: rgb(240, 240, 240);
+            padding: 10px;
+            border-radius: 5px;
+            max-height: 45vh;
+            overflow-y: auto;
+            z-index: 10000;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        @media screen and (min-width: 1500px) {
+            #previousHistory {
+                left: 210px;
+            }
+        }
+
+        /* 기존의 모바일 반응형도 유지 */
+        @media screen and (max-width: 768px) {
+            #previousHistory {
+                width: 95%;
+                left: 2.5%;
+                max-height: 45vh;
+                bottom: 45px;
+                max-width: 370px;
+            }
+        }
+
+        #showPreviousRecordsBtn {
+            position: fixed;
+            left: 70px;
+            bottom: 10px;
+            z-index: 1001;
+            padding: 5px 10px;
+            background-color: #6060AA;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        #showPreviousRecordsBtn:hover {
+            background-color: #4040FF;
+        }
+
+        .historyButtons {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 10px;
+        }
+
+        #closePreviousHistoryBtn,
+        #clearLocalStorageBtn,
+        #exportLocalStorageBtn {
+            background-color: #6060AA;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            margin-left: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        #closePreviousHistoryBtn:hover,
+        #clearLocalStorageBtn:hover,
+        #exportLocalStorageBtn:hover {
+            background-color: #4040FF;
+        }
+
+        @media all and (max-width: 40em) {
+            body {
+                font-size: 0.8em;
+            }
+        }
+
+        @media screen and (max-width: 768px) {
+
+
+            #previousHistory {
+                width: 95%;
+                left: 2.5%;
+                max-height: 45vh;
+                bottom: 45px;
+                max-width: 370px;
+            }
+
+            #toggleHistoryBtn,
+            #showPreviousRecordsBtn {
+                font-size: 12px;
+                padding: 3px 6px;
+            }
+
+            #toggleHistoryBtn {
+                top: 5px;
+                right: 5px;
+            }
+
+            #showPreviousRecordsBtn {
+                left: 5px;
+                bottom: 5px;
+            }
+
+            #connectionInfo,
+            #customPing {
+                max-width: 90%;
+            }
+
+            #customPing {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            #customUrl,
+            #customPing button {
+                width: 100%;
+                border-radius: 5px;
+                margin-bottom: 10px;
+            }
+
+            .customPingInputGroup {
+                flex-direction: column;
+            }
+
+            #customUrl,
+            #customPing button {
+                width: 100%;
+                border-radius: 5px;
+                margin-bottom: 10px;
+            }
+
+            .historyButtons {
+                flex-wrap: wrap;
+            }
+
+            #clearLocalStorageBtn,
+            #exportLocalStorageBtn {
+                margin-top: 5px;
+            }
+        }
+
+        @media all and (prefers-color-scheme: dark) {
+
+            html,
+            body,
+            #loading {
+                background: #202020;
+                color: #F4F4F4;
+            }
+
+            h1 {
+                color: #E0E0E0;
+            }
+
+            a {
+                color: #9090FF;
+            }
+
+            #privacyPolicy {
+                background: #000000;
+            }
+
+            #resultsImg {
+                filter: invert(1);
+            }
+        }
+
+        #ip2,
+        .infoLabel2,
+        #ip {
+            display: none;
+        }
+
+        #pria {
+            display: none;
+        }
+
+        .msec-image {
+            position: relative;
+            top: 3px;
+        }
+
+        .testArea canvas {
+            z-index: 1 !important;
+        }
+
+        .testArea .meterText {
+            z-index: 2 !important;
+        }
+
+
+        .unit {
+            z-index: 2 !important;
+        }
+
+        .tooltip {
+            position: relative;
+            z-index: 9998;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: #FFFFFF !important;
+            color: black;
+            text-align: left;
+            border-radius: 6px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+
+            /* z-index 대폭 상승 */
+            position: absolute;
+            z-index: 9999;
+            top: 125%;
+            left: 50%;
+            margin-left: -100px;
+
+            font-size: 12px;
+            line-height: 1.4;
+
+            /* 불투명도 관련 속성 강화 */
+            opacity: 0;
+            transition: opacity 0.3s;
+            background-clip: padding-box;
+            -webkit-backdrop-filter: none;
+            backdrop-filter: none;
+
+            /* 레이어 분리 강화 */
+            transform: translateZ(0);
+            isolation: isolate;
+            mix-blend-mode: normal;
+
+            /* 추가된 속성 */
+            pointer-events: none;
+            contain: paint;
+            background: #FFFFFF !important;
+        }
+
+        @media all and (prefers-color-scheme: dark) {
+
+            html,
+            body,
+            #loading {
+                background: #202020;
+                color: #F4F4F4;
+            }
+
+            h1 {
+                color: #E0E0E0;
+            }
+
+            a {
+                color: #9090FF;
+            }
+
+            #privacyPolicy {
+                background: #000000;
+            }
+
+            #resultsImg {
+                filter: invert(1);
+            }
+
+            #historyTable th,
+            #historyTable td,
+            #previousHistoryTable th,
+            #previousHistoryTable td {
+                background-color: #222 !important;
+                color: #F4F4F4 !important;
+            }
+
+            #testHistory,
+            #previousHistory {
+                background-color: #222 !important;
+            }
+
+            #connectionInfo {
+                background-color: #222 !important;
+                color: #F4F4F4 !important;
+                border: 1.5px solid #aaa !important;
+                /* 밝은 회색 테두리 */
+                box-shadow: 0 0 8px #2228;
+            }
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+            background: #FFFFFF !important;
+            pointer-events: auto;
+        }
+
+        #highPingPercent:empty:before {
+            content: none;
+        }
+
+        #highPingPercent {
+            font-size: 2.5em;
+            /* jitText와 동일한 크기 */
+            color: #AA6060;
+        }
+
+        .speedJitter {
+            position: absolute;
+            bottom: -5px;
+            width: 100%;
+            text-align: center;
+            font-size: 0.8em;
+            color: #666;
+        }
+
+        #dlJitterText,
+        #ulJitterText {
+            font-weight: bold;
+        }
+    </style>
+    <title>인터넷 속도 측정</title>
+</head>
+
+<body onload="setTimeout(initServers, 2000);setTimeout(autoRun, 7500);">
+    <br>
+    <img id="niaLogo" src="./NIA.PNG" alt="NIA" onclick="location.reload();" style="width: 12%; cursor: pointer;" />
+    <button id="toggleHistoryBtn" onclick="toggleHistory()">기록표 열기</button>
+
+    <div id="loading" class="visible">
+        <p id="message"><span class="loadCircle"></span>Selecting a server...</p>
+    </div>
+
+    <div id="testWrapper" class="hidden">
+        <div id="startStopBtn" onclick="startStop2()"></div>
+        <br />
+        <a class="privacy" id="pria" href="#" onclick="I('privacyPolicy').style.display=''">Privacy</a>
+
+        <div id="serverArea">
+            Server: <select id="server" onchange="s.setSelectedServer(SPEEDTEST_SERVERS[this.value])"></select>
+        </div>
+
+        <div id="test">
+            <div class="testGroup">
+                <div class="testArea2">
+                    <div class="testName"
+                        style="display: flex; justify-content: center; align-items: center; gap: 5px;">
+                        지연시간
+                        <div class="tooltip" style="margin-left: -1px;top: -1px;">
+                            <img src="./qu.png" alt="?" style="width: 25px; height: 25px; vertical-align: middle;">
+                            <span class="tooltiptext">
+                                <span style="font-size: 12px; font-weight: bold;">지연시간 (Ping)</span><br>
+                                <span style="font-size: 10px;">인터넷 신호가 내 기기에서 서버까지 갔다가 돌아오는 데 걸리는 시간을 말합니다. 숫자가 작을수록 인터넷
+                                    반응 속도가 빠르다는 뜻입니다. 게임이나 화상통화에서 중요합니다.<br><br>권장 수치 : 30ms 이하 (100ms 이상이면 인터넷의 느림이
+                                    감지됨)</span>
+                            </span>
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: center; align-items: baseline; gap: 4px;">
+                        <div id="pingText" class="meterText" style="color:#AA6060; margin: 0;"></div>
+                        <div class="unit" style="margin-top: 0;">
+                            <img src="./ms.PNG" alt="msec" class="msec-image" style="height: 20px;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="testArea2">
+                    <div class="testName"
+                        style="display: flex; justify-content: center; align-items: center; gap: 5px;">
+                        지연편차
+                        <div class="tooltip" style="margin-left: -1px;top: -1px;">
+                            <img src="./qu.png" alt="?" style="width: 25px; height: 25px; vertical-align: middle;">
+                            <span class="tooltiptext">
+                                <span style="font-size: 12px; font-weight: bold;">지연편차 (Jitter)</span><br>
+                                <span style="font-size: 10px;">지연편차는 인터넷 속도가 일정하지 않고 변동이 있는 정도를 나타냅니다. 값이 클수록 인터넷 연결이
+                                    불안정할 수 있다는 의미이며, 화상통화나 동영상 시청 중 끊김이 생길 가능성이 있습니다.<br><br>권장 수치: 30ms 이하 (20ms 이하는 매우
+                                    안정적)</span>
+                            </span>
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: center; align-items: baseline; gap: 4px;">
+                        <div id="jitText" class="meterText" style="color:#AA6060; margin: 0;"></div>
+                        <div class="unit" style="margin-top: 0;">
+                            <img src="./ms.PNG" alt="msec" class="msec-image" style="height: 20px;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="testArea2">
+                    <div class="testName"
+                        style="display: flex; justify-content: center; align-items: center; gap: 5px;">
+                        손실률
+                        <div class="tooltip" style="margin-left: -1px;top: -1px;">
+                            <img src="./qu.png" alt="?" style="width: 25px; height: 25px; vertical-align: middle;">
+                            <span class="tooltiptext">
+                                <span style="font-size: 12px; font-weight: bold;">손실률 (Loss Rate)</span><br>
+                                <span style="font-size: 10px;">인터넷에서 데이터를 주고받을 때, 전송된 데이터 중 일부가 제대로 전달되지 않고 손실되는 비율을
+                                    나타냅니다. 이 손실률이 높을수록 네트워크 품질이 떨어지며, 화상통화가 끊기거나 영상 스트리밍이 버퍼링되는 등의 문제가 발생할 수
+                                    있습니다.<br><br>권장 수치 : 0% (1% 이상 측정 시 품질 저하로 판단)</span>
+                            </span>
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: center; align-items: baseline; gap: 4px;">
+                        <div id="highPingPercent" style="color:#AA6060; margin: 0;"></div>
+                        <div class="unit" style="margin-top: 0;">%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="testGroup">
+            <div class="testArea">
+                <div class="testName" style="display: flex; justify-content: center; align-items: center; gap: 5px;">
+                    다운로드
+                    <div class="tooltip" style="margin-left: -1px;top: -1px;">
+                        <img src="./qu.png" alt="?" style="width: 25px; height: 25px; vertical-align: middle;">
+                        <span class="tooltiptext">
+                            <span style="font-size: 12px; font-weight: bold;">다운로드 속도</span><br>
+                            <span style="font-size: 10px;">인터넷에서 내 기기로 데이터를 받는 속도를 말합니다. 다운로드 속도가 빠를수록 파일, 동영상 등을 더 빠르게
+                                받을 수 있습니다. 여러번 측정해도 일정한 값이 나와야 안정적으로 이용 가능합니다.<br>권장 수치: 사용하는 요금제, 공유기의 성능, 환경에 따라 다르게
+                                측정되지만 최대 수치의 80% 이상을 권장하고 있습니다.<br>ex) 유선 : 100메가 상품 = 80Mbps 이상<br> 500메가 상품 = 400mbps
+                                이상</span>
+                        </span>
+                    </div>
+                </div>
+                <canvas id="dlMeter" class="meter"></canvas>
+                <div id="dlText" class="meterText"></div>
+                <div class="unit">Mbps</div>
+                <div class="speedJitter">편차: <span id="dlJitterText">-</span> Mbps</div>
+            </div>
+
+            <div class="testArea">
+                <div class="testName" style="display: flex; justify-content: center; align-items: center; gap: 5px;">
+                    업로드
+                    <div class="tooltip" style="margin-left: -1px;top: -1px;">
+                        <img src="./qu.png" alt="?" style="width: 25px; height: 25px; vertical-align: middle;">
+                        <span class="tooltiptext">
+                            <span style="font-size: 12px; font-weight: bold;">업로드 속도</span><br>
+                            <span style="font-size: 10px;">내 기기에서 인터넷으로 데이터를 보내는 속도를 말합니다. 업로드 속도가 낮으면 파일 전송, 화상 통화, 실시간
+                                데이터 전송이 필요한 경우 이상이 생길 수 있습니다. 여러번 측정해도 일정한 값이 나와야 안정적으로 이용 가능합니다.<br>권장 수치: 다운로드 속도와 권장
+                                수치와 동일하게 최대 수치의 80%를 권장합니다.<br>ex) 유선 : 100메가 상품 = 80Mbps 이상<br> 500메가 상품 = 400mbps
+                                이상</span>
+                        </span>
+                    </div>
+                </div>
+                <canvas id="ulMeter" class="meter"></canvas>
+                <div id="ulText" class="meterText"></div>
+                <div class="unit">Mbps</div>
+                <div class="speedJitter">편차: <span id="ulJitterText">-</span> Mbps</div>
+            </div>
+        </div>
+
+        <div id="ipArea">
+            <span id="ips"></span>
+            <span id="ips"><span class="highlight"></span></span>
+        </div>
+
+        <div id="connectionInfo" style="font-size: 12px;">
+            <div id="ip2">
+                <span class="infoLabel2">IP Address</span>
+                <span id="ip"></span>
+            </div>
+            <div>
+                <span class="infoLabel">통신 업체</span>
+                <span id="isp"></span>
+            </div>
+            <div>
+                <span class="infoLabel">접속 서버</span>
+                <span id="location"></span>
+            </div>
+            <div>
+                <span class="infoLabel">측정 서버</span>
+                <span>Geumcheon-gu, Seoul, South Korea / Powered by LJH</span>
+            </div>
+        </div>
+
+        <div id="shareArea" style="display:none">
+            <h3>Share results</h3>
+            <p>Test ID: <span id="testId"></span></p>
+            <input type="text" value="" id="resultsURL" readonly="readonly"
+                onclick="this.select();this.focus();this.select();document.execCommand('copy');alert('Link copied')" />
+            <img src="" id="resultsImg" />
+        </div>
+    </div>
+
+    <div id="testHistory">
+        <table id="historyTable">
+            <thead>
+                <tr>
+                    <th width="140px" style="margin-top: -10px;">
+                        <button id="clearLocalStorageBtn" onclick="showPreviousRecords()">전체 기록</button>
+                        <button id="clearLocalStorageBtn" onclick="generateCurrentTestReport()">분석</button>
+                    </th>
+                    <th onclick="generateCurrentTestReport2()" style="cursor: pointer;">지연<br>(ms)</th>
+                    <th>편차<br>(ms)</th>
+                    <th>손실<br>(%)</th>
+                    <th>다운<br>(Mbps)</th>
+                    <th>업<br>(Mbps)</th>
+                    <th>업/다운<br>(%)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- JavaScript will populate this -->
+            </tbody>
+        </table>
+    </div>
+
+    <br>
+
+    <div id="previousHistory">
+        <div class="historyButtons">
+            <button id="clearLocalStorageBtn" onclick="generateSpeedReport()">전체 분석</button>
+            <button id="clearLocalStorageBtn" onclick="window.open('./pingtest.php', '_blank')">핑 태스트</button>
+            <button id="clearLocalStorageBtn" onclick="clearLocalStorage()">기록 비우기</button>
+            <button id="clearLocalStorageBtn" onclick="hidePreviousRecords()">닫기</button>
+        </div>
+        <h3>지난 측정 기록</h3>
+        <table id="previousHistoryTable">
+            <thead>
+                <tr>
+                    <th width="330px">시간</th>
+                    <th>지연(ms)</th>
+                    <th>편차(ms)</th>
+                    <th width="26px">손실(%)</th>
+                    <th>다운(Mbps)</th>
+                    <th>업(Mbps)</th>
+                    <th width="60px">업/다운<br>(%)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- JavaScript will populate this -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 구글광고칸
+    <ins class="adsbygoogle" style="display:block; text-align:center;" data-ad-layout="in-article"
+        data-ad-format="fluid" data-ad-client="ca-pub-5608634720341543" data-ad-slot="9272697897"></ins>
+    <script>
+        (adsbygoogle = window.adsbygoogle || []).push({});
+    </script>
+    -->
+
+    <!--
+    <button id="showPreviousRecordsBtn" onclick="showPreviousRecords()">이전 기록 보기</button>
+-->
+</body>
+
+</html>

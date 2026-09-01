@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>인터넷 속도 분석 보고서</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 20px;
+            background: #f5f5f5;
+            color: #222;
+            font-family: Arial, sans-serif;
+            line-height: 1.3;
+        }
+
+        #capture-area {
+            max-width: 1600px;
+            margin: 0 auto 45px;
+            padding: 10px;
+            background: #fff;
+        }
+
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        #resultTable {
+            width: 100%;
+            max-width: 1200px;
+            margin: 10px auto;
+            border-collapse: collapse;
+            border: 1px solid #ccc;
+            font-size: 12px;
+        }
+
+        #resultTable th,
+        #resultTable td {
+            height: 18px;
+            padding: 4px 6px;
+            border: 1px solid #aaa;
+            text-align: center;
+        }
+
+        #resultTable th {
+            height: 20px;
+            background: #e0e0e0;
+            color: #333;
+            font-size: 11px;
+        }
+
+        #resultTable tbody tr:nth-child(even) {
+            background: #f0f0f0;
+        }
+
+        #resultTable tbody tr:hover {
+            background: #e8e8e8;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: auto;
+            padding: 10px;
+            border-radius: 10px;
+            background: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, .1);
+        }
+
+        .header-inline {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .header-inline h2 {
+            margin: 0;
+            color: #333;
+            font-size: 1.5em;
+        }
+
+        .sections-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .section {
+            margin: 0;
+            padding: 12px;
+            border-radius: 5px;
+        }
+
+        .section h3 {
+            margin: 0 0 8px;
+        }
+
+        .section p,
+        .section div {
+            margin: 4px 0;
+        }
+
+        .warning {
+            background: #ffe6e6;
+        }
+
+        .normal {
+            background: #e6ffe6;
+        }
+
+        .status {
+            max-width: 800px;
+            margin: 80px auto;
+            padding: 20px;
+            border-radius: 8px;
+            background: #fff;
+            text-align: center;
+        }
+
+        .error {
+            color: #b00020;
+        }
+
+        footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            z-index: 1000;
+            width: 100%;
+            padding: 3px;
+            border-top: 1px solid #dee2e6;
+            background: #f8f9fa;
+            color: #6c757d;
+            text-align: center;
+            font-size: 10px;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                margin: 6px;
+            }
+
+            #capture-area,
+            .container {
+                padding: 8px;
+            }
+
+            .sections-container {
+                grid-template-columns: 1fr;
+            }
+
+            #resultTable {
+                min-width: 520px;
+                font-size: 11px;
+            }
+
+            #resultTable th,
+            #resultTable td {
+                padding: 3px 5px;
+                white-space: nowrap;
+            }
+
+            .header-inline {
+                margin-bottom: 8px;
+            }
+
+            .header-inline h2 {
+                font-size: 1.1em;
+            }
+
+            .section h3 {
+                font-size: 1em;
+            }
+
+            .section p,
+            .section div {
+                font-size: .88em;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="status" class="status">현재 측정표를 분석하는 중입니다.</div>
+    <main id="capture-area" style="display:none">
+        <div class="table-wrapper">
+            <table id="resultTable">
+                <thead>
+                    <tr>
+                        <th id="measurementTime">측정 시간</th>
+                        <th>지연 시간(ms)</th>
+                        <th>지연 편차(ms)</th>
+                        <th>손실률(%)</th>
+                        <th>다운(Mbps)</th>
+                        <th>업(Mbps)</th>
+                        <th>업/다운(%)</th>
+                    </tr>
+                </thead>
+                <tbody id="resultRows"></tbody>
+            </table>
+        </div>
+        <div class="container">
+            <div class="header-inline">
+                <h2>테스트 분석 결과</h2>
+            </div>
+            <div id="sections" class="sections-container"></div>
+        </div>
+    </main>
+    <footer>Created by 이정환 | 광고 및 기술 문의 Email: ljh20341@gmail.com</footer>
+    <script>
+        (function () {
+            function num(value) {
+                var parsed = parseFloat(String(value).replace('%', ''));
+                return isFinite(parsed) ? parsed : 0;
+            }
+            function fixed(value) { return num(value).toFixed(1); }
+            function escapeHtml(value) {
+                return String(value == null ? '' : value).replace(/[&<>'"]/g, function (character) {
+                    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character];
+                });
+            }
+            function average(values) {
+                var sum = 0;
+                for (var i = 0; i < values.length; i++) sum += values[i];
+                return values.length ? sum / values.length : 0;
+            }
+            function min(values) { return values.length ? Math.min.apply(Math, values) : 0; }
+            function max(values) { return values.length ? Math.max.apply(Math, values) : 0; }
+            function section(title, warning, html) {
+                return '<section class="section ' + (warning ? 'warning' : 'normal') + '"><h3>' + title + '</h3>' + html + '</section>';
+            }
+            function loadData() {
+                var marker = '#data=';
+                if (window.location.hash.indexOf(marker) !== 0) throw new Error('전달된 측정표 데이터가 없습니다.');
+                return JSON.parse(decodeURIComponent(window.location.hash.substring(marker.length)));
+            }
+            function render(data) {
+                var tests = data.tests || [];
+                if (!tests.length) throw new Error('분석할 측정 결과가 없습니다.');
+
+                var pings = [], jitters = [], losses = [], downloads = [], uploads = [];
+                var rows = '';
+                var biggest = { percentage: 0, timestamp: '', download: 0, upload: 0 };
+
+                for (var i = 0; i < tests.length; i++) {
+                    var test = tests[i];
+                    var ping = num(test.ping);
+                    var jitter = num(test.jitter);
+                    var loss = num(test.loss);
+                    var download = num(test.download);
+                    var upload = num(test.upload);
+                    var denominator = Math.max(download, upload);
+                    var difference = denominator > 0 ? Math.abs(download - upload) / denominator * 100 : 0;
+
+                    pings.push(ping);
+                    jitters.push(jitter);
+                    losses.push(loss);
+                    downloads.push(download);
+                    uploads.push(upload);
+
+                    if (difference > biggest.percentage || i === 0) {
+                        biggest = {
+                            percentage: difference,
+                            timestamp: test.timestamp,
+                            download: download,
+                            upload: upload
+                        };
+                    }
+
+                    rows += '<tr><td>' + escapeHtml(test.timestamp) + '</td>' +
+                        '<td>' + fixed(ping) + '</td><td>' + fixed(jitter) + '</td>' +
+                        '<td>' + fixed(loss) + '</td><td>' + fixed(download) + '</td>' +
+                        '<td>' + fixed(upload) + '</td><td>' + fixed(test.ratio) + '</td></tr>';
+                }
+
+                var allSpeeds = downloads.concat(uploads);
+                var maxDownload = max(downloads), minDownload = min(downloads);
+                var maxUpload = max(uploads), minUpload = min(uploads);
+                var maxSpeed = max(allSpeeds), minSpeed = min(allSpeeds);
+                var downloadVariability = maxDownload > 0 ? (maxDownload - minDownload) / maxDownload * 100 : 0;
+                var uploadVariability = maxUpload > 0 ? (maxUpload - minUpload) / maxUpload * 100 : 0;
+                var speedRatio = maxSpeed > 0 ? (maxSpeed - minSpeed) / maxSpeed * 100 : 0;
+                var avgPing = average(pings), maxPing = max(pings), minPing = min(pings);
+                var avgJitter = average(jitters), maxJitter = max(jitters), maxLoss = max(losses);
+                var avgDownload = average(downloads), avgUpload = average(uploads);
+                var maxSpeedType = maxDownload >= maxUpload ? '다운로드' : '업로드';
+                var minSpeedType = minDownload <= minUpload ? '다운로드' : '업로드';
+
+                document.getElementById('resultRows').innerHTML = rows;
+
+                var latency =
+                    '<p>' + (maxPing > 30 ? '⚠️' : '✅') + ' 최대 지연시간이 ' + fixed(maxPing) + 'ms로 ' + (maxPing > 30 ? '30ms를 초과하여 인터넷 응답 속도가 불안정합니다. 온라인 게임이나 화상 통화 시 지연이 발생할 수 있습니다.' : '안정적으로 보입니다.') + '</p>' +
+                    '<p>' + (maxJitter > 30 ? '⚠️' : '✅') + ' 최대 지연편차가 ' + fixed(maxJitter) + 'ms로 ' + (maxJitter > 30 ? '30ms를 초과하여 네트워크 연결이 불안정합니다.' : '안정적으로 보입니다.') + '</p>' +
+                    '<p>' + (maxLoss > 0.001 ? '⚠️' : '✅') + ' 손실률이 ' + fixed(maxLoss) + '%로 ' + (maxLoss > 0.001 ? '측정되어 데이터 전송 중 손실이 발생할 수 있습니다.' : '안정적으로 보입니다.') + '</p>' +
+                    '<div>평균 지연시간: ' + fixed(avgPing) + 'ms / 최소 지연시간: ' + fixed(minPing) + 'ms / 최대 손실률: ' + fixed(maxLoss) + '%</div>' +
+                    '<div>평균 지연편차: ' + fixed(avgJitter) + 'ms / 최대 지연편차: ' + fixed(maxJitter) + 'ms</div>';
+
+                var balance =
+                    '<p>' + (speedRatio > 35 ? '⚠️' : '✅') + ' 업로드와 다운로드의 최고/최저 속도 차이가 ' + fixed(speedRatio) + '%로 ' + (speedRatio > 35 ? '높게 측정되고 있습니다. (최고: ' + fixed(maxSpeed) + ' Mbps, 최저: ' + fixed(minSpeed) + ' Mbps)' : '안정적으로 보입니다.') + '</p>' +
+                    '<p>' + (biggest.percentage > 30 ? '⚠️ 업/다운 불균형이 감지되었습니다. (' + escapeHtml(biggest.timestamp) + ' 측정) - 다운로드: ' + fixed(biggest.download) + ' Mbps, 업로드: ' + fixed(biggest.upload) + ' Mbps, 차이: ' + fixed(biggest.percentage) + '%.' : '✅ 업/다운의 가장 큰 편차 비율이 ' + fixed(biggest.percentage) + '%로 안정적으로 보입니다.') + '</p>' +
+                    '<div>시간별 최고 차이: ' + escapeHtml(biggest.timestamp) + ' / 다운로드: ' + fixed(biggest.download) + ' Mbps, 업로드: ' + fixed(biggest.upload) + ' Mbps, 차이: ' + fixed(biggest.percentage) + '%</div>' +
+                    '<div>최고 속도: ' + fixed(maxSpeed) + ' Mbps (' + maxSpeedType + ')</div>' +
+                    '<div>최저 속도: ' + fixed(minSpeed) + ' Mbps (' + minSpeedType + ')</div>';
+
+                var downloadText =
+                    '<p>' + (minDownload < 30 ? '⚠️' : '✅') + ' 최소 다운로드 속도가 ' + fixed(minDownload) + 'Mbps로 ' + (minDownload < 30 ? '30Mbps 미만으로 측정되어 속도가 불안정한 것으로 보입니다.' : '안정적으로 보입니다.') + '</p>' +
+                    '<p>' + (avgDownload < 30 ? '⚠️' : '✅') + ' 평균 다운로드 속도가 ' + fixed(avgDownload) + 'Mbps로 ' + (avgDownload < 30 ? '30Mbps 미만으로 측정되어 느린 속도로 판단됩니다.' : '안정적으로 보입니다.') + '</p>' +
+                    '<p>' + (downloadVariability > 25 ? '⚠️' : '✅') + ' 다운로드 속도의 변동폭이 ' + fixed(downloadVariability) + '%로 ' + (downloadVariability > 25 ? '높게 측정되고 있습니다.' : '안정적으로 유지되고 있습니다.') + '</p>' +
+                    '<div>다운로드 최저 속도: ' + fixed(minDownload) + ' Mbps / 다운로드 최고 속도: ' + fixed(maxDownload) + ' Mbps</div>' +
+                    '<div>최저/최고 다운로드 속도 차이 비율: ' + fixed(downloadVariability) + '%</div>';
+
+                var uploadText =
+                    '<p>' + (minUpload < 30 ? '⚠️' : '✅') + ' 최소 업로드 속도가 ' + fixed(minUpload) + 'Mbps로 ' + (minUpload < 30 ? '30Mbps 미만으로 측정되어 속도가 불안정한 것으로 보입니다.' : '안정적으로 보입니다.') + '</p>' +
+                    '<p>' + (avgUpload < 30 ? '⚠️' : '✅') + ' 평균 업로드 속도가 ' + fixed(avgUpload) + 'Mbps로 ' + (avgUpload < 30 ? '30Mbps 미만으로 측정되어 느린 속도로 판단됩니다.' : '안정적으로 보입니다.') + '</p>' +
+                    '<p>' + (uploadVariability > 25 ? '⚠️' : '✅') + ' 업로드 속도의 변동폭이 ' + fixed(uploadVariability) + '%로 ' + (uploadVariability > 25 ? '높게 측정되고 있습니다.' : '안정적으로 유지되고 있습니다.') + '</p>' +
+                    '<div>업로드 최저 속도: ' + fixed(minUpload) + ' Mbps / 업로드 최고 속도: ' + fixed(maxUpload) + ' Mbps</div>' +
+                    '<div>최저/최고 업로드 속도 차이 비율: ' + fixed(uploadVariability) + '%</div>';
+
+                document.getElementById('sections').innerHTML =
+                    section('지연시간 분석', maxPing > 30 || maxJitter > 30 || maxLoss > 0.001, latency) +
+                    section('업로드/다운로드 균형 분석', speedRatio > 35 || biggest.percentage > 30, balance) +
+                    section('다운로드 속도 분석', avgDownload < 30 || minDownload < 30 || downloadVariability > 25, downloadText) +
+                    section('업로드 속도 분석', avgUpload < 30 || minUpload < 30 || uploadVariability > 25, uploadText);
+
+                document.getElementById('status').style.display = 'none';
+                document.getElementById('capture-area').style.display = 'block';
+            }
+
+            try {
+                render(loadData());
+            } catch (error) {
+                var status = document.getElementById('status');
+                status.className += ' error';
+                status.innerHTML = escapeHtml(error && error.message ? error.message : '분석 데이터를 불러오지 못했습니다.');
+            }
+        })();
+    </script>
+</body>
+
+</html>
